@@ -14,8 +14,8 @@ out <- SpaDES.project::setupProject(
 
   ### Define local variables (spades_ws3 module parameters)
   basenames = list("tsa41"),
-  #scheduler.mode = "optimize", # Change these to set scheduler mode between 'areacontrol' and 'optimize'
-  scheduler.mode<- "areacontrol",
+  scheduler.mode = "optimize", # Change these to set scheduler mode between 'areacontrol' and 'optimize'
+  #scheduler.mode<- "areacontrol",
   target.scalefactors={                # these are different depending on scheduler.mode selection
   if (scheduler.mode == "optimize") {
     py_dict(basenames, list(rep(1.0, times = length(basenames))))
@@ -36,17 +36,17 @@ out <- SpaDES.project::setupProject(
   ###
 
   useGit = "eliotmcintire",
-  paths = list(projectPath = "projects/WS3/cccandies-demo-202503B",
-               modulePath = 'modules',
-               inputPath = 'input',
-               outputPath = 'output',
-               cachePath = 'cache'),
+  paths = list(projectPath = file.path("projects/WS3/cccandies-demo-202503B"),
+               modulePath = file.path("modules"),
+               inputPath = file.path('input'),
+               outputPath = file.path('output'),
+               cachePath = file.path('cache')),
   modules = c(
-    #"UBC-FRESH/cccandies_demo_input@master", #add this as a submodule to ws3_dataInit
     "PredictiveEcology/spades_ws3_dataInit@dev",
     "PredictiveEcology/spades_ws3@dev",
-    "AllenLarocque/spades_ws3_landrAge@PE",
-    "PredictiveEcology/scfm@development"
+    "AllenLarocque/spades_ws3_landrAge@PE"
+    #"PredictiveEcology/scfm@development",
+    #"pkalanta/simpleHarvest@parvintesting",
     # "PredictiveEcology/Biomass_borealDataPrep@development",
     # "PredictiveEcology/Biomass_core@development",
     # "PredictiveEcology/Biomass_regeneration@development",
@@ -93,12 +93,28 @@ out <- SpaDES.project::setupProject(
   }
 )
 
- #fix modules
-  out$modules <- c(
-    grep("scfm", out$modules, invert = TRUE, value = TRUE),
-    "scfm/modules/scfmDataPrep", "scfm/modules/scfmDiagnostics",
-    "scfm/modules/scfmIgnition", "scfm/modules/scfmEscape", "scfm/modules/scfmSpread"
-    )
+
+#annoying steps because scfm is annoying:
+#out$paths$modulePath <- c("modules", "modules/scfm/modules")
+#out$modules <- setdiff(c(out$modules,
+#                         c("scfmDataPrep", "scfmIgnition", "scfmEscape", "scfmSpread")),
+ #                    "scfm")
+#out$params$scfmDataPrep$targetN <- 1000 #quick calibration while testing
+
+
+#fix modules
+#out$modules <- c(
+#    grep("scfm", out$modules, invert = TRUE, value = TRUE),
+#      "scfm/modules/scfmIgnition", "scfm/modules/scfmEscape", "scfm/modules/scfmSpread")
+
+  # #fix modules
+  # out$modules <- c(
+  #   grep("scfm", out$modules, invert = TRUE, value = TRUE),
+  #   "scfm/modules/scfmDataPrep", "scfm/modules/scfmDiagnostics",
+  #   "scfm/modules/scfmIgnition", "scfm/modules/scfmEscape", "scfm/modules/scfmSpread"
+  # )
+
+
 
 simOut <- do.call(SpaDES.core::simInitAndSpades, out)
 

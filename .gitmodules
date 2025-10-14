@@ -22,3 +22,6 @@
 [submodule "modules/LandR_reforestation"]
 	path = modules/LandR_reforestation
 	url = https://github.com/ianmseddy/LandR_reforestation
+[submodule "modules/simpleHarvest"]
+	path = modules/simpleHarvest
+	url = https://github.com/pkalanta/simpleHarvest
