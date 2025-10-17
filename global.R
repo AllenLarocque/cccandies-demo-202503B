@@ -33,16 +33,16 @@ out <- SpaDES.project::setupProject(
   ###
 
   useGit = "eliotmcintire",
-  paths = list(projectPath = "projects/WS3/cccandies-demo-202503B",
+  paths = list(projectPath = "cccandies-demo-202503B",
                modulePath = 'modules',
                inputPath = 'input',
                outputPath = 'output',
                cachePath = 'cache'),
   modules = c(
-    #"UBC-FRESH/cccandies_demo_input@master", #add this as a submodule to ws3_dataInit
-    "PredictiveEcology/spades_ws3_dataInit@dev",
+    "UBC-FRESH/cccandies_demo_input@master", #add this as a submodule to ws3_dataInit
+    "PredictiveEcology/spades_ws3_dataInit@main",
     "PredictiveEcology/spades_ws3@dev",
-    "AllenLarocque/spades_ws3_landrAge@PE"
+    "ianmseddy/spades_ws3_landrAge@master"
     # "PredictiveEcology/scfm@development",
     # "PredictiveEcology/Biomass_borealDataPrep@development",
     # "PredictiveEcology/Biomass_core@development",
@@ -61,11 +61,10 @@ out <- SpaDES.project::setupProject(
       base.year = base.year    # for LandR_age + ws3
     ),
     spades_ws3_dataInit = list(
-      GithubURL="git@github.com:UBC-FRESH/cccandies-demo-202503-input.git",
-      .saveInitialTime = 0,
-      .saveInterval = 1,
-      .saveObjects = c("landscape"),
-      .savePath = file.path(paths$outputPath, "landscape")),
+                               .saveInitialTime = 0,
+                               .saveInterval = 1,
+                               .saveObjects = c("landscape"),
+                               .savePath = file.path(paths$outputPath, "landscape")),
     spades_ws3 = list(basenames = basenames,
                       horizon = horizon,
                       enable.debugpy = FALSE,
@@ -79,7 +78,7 @@ out <- SpaDES.project::setupProject(
                "reticulate", "httr", "RCurl", "XML",
                "PredictiveEcology/reproducible@AI (>= 2.1.2.9056)",
                "PredictiveEcology/SpaDES.core@box (>= 2.1.5.9005)"
-  ),
+               ),
   sppEquiv = {
     spp <- LandR::sppEquivalencies_CA[LandR %in% c("Pinu_con", "Pinu_ban",
                                                    "Pice_gla", "Pice_mar",
@@ -96,16 +95,16 @@ out <- SpaDES.project::setupProject(
 #   "scfmDataPrep", "scfmDiagnostics",
 #   "scfmIgnition", "scfmEscape", "scfmSpread"
 #   )
-#out$modules <- out$modules[grep("cccandies_demo_input", out$modules, invert = TRUE)]   # Fix this
+out$modules <- out$modules[grep("cccandies_demo_input", out$modules, invert = TRUE)]   # Fix this
 
-#if (!dir.exists("modules/cccandies_demo_input/hdt")) {
-#  if (!length(list.files("modules/cccandies_demo_input/hdt")) > 0) {
-#    #the above could be repeated for tif, gis,
-#  system("cd modules/cccandies_demo_input && datalad get input . -r")
-#  }
-#}
-#out$paths$modulePath <- c("modules", "modules/scfm/modules")
-#out$loadOrder <- unlist(out$modules)
+if (!dir.exists("modules/cccandies_demo_input/hdt")) {
+  if (!length(list.files("modules/cccandies_demo_input/hdt")) > 0) {
+    #the above could be repeated for tif, gis,
+  system("cd modules/cccandies_demo_input && datalad get input . -r")
+  }
+}
+out$paths$modulePath <- c("modules", "modules/scfm/modules")
+out$loadOrder <- unlist(out$modules)
 
 #TODO: discuss with Greg making candies_demo_ws3 a submodule of spades_ws3_dataPrep
 
