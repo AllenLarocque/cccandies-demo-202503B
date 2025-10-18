@@ -36,7 +36,7 @@ out <- SpaDES.project::setupProject(
   ###
 
   useGit = "eliotmcintire",
-  paths = list(projectPath = file.path("projects/WS3/cccandies-demo-202503B"),
+  paths = list(projectPath = file.path(getwd()),
                modulePath = file.path("modules"),
                inputPath = file.path('input'),
                outputPath = file.path('output'),
@@ -44,13 +44,12 @@ out <- SpaDES.project::setupProject(
   modules = c(
     "PredictiveEcology/spades_ws3_dataInit@dev",
     "PredictiveEcology/spades_ws3@dev",
-    "AllenLarocque/spades_ws3_landrAge@PE"
-    #"PredictiveEcology/scfm@development",
-    #"pkalanta/simpleHarvest@parvintesting",
-    # "PredictiveEcology/Biomass_borealDataPrep@development",
-    # "PredictiveEcology/Biomass_core@development",
-    # "PredictiveEcology/Biomass_regeneration@development",
-    # "ianmseddy/LandR_reforestation@master"
+    "AllenLarocque/spades_ws3_landrAge@PE",
+    "PredictiveEcology/scfm@development"
+    #"PredictiveEcology/Biomass_borealDataPrep@development",
+    #"PredictiveEcology/Biomass_core@development",
+    #"PredictiveEcology/Biomass_regeneration@development",
+    #"ianmseddy/LandR_reforestation@master"
   ),
 
 
@@ -95,11 +94,15 @@ out <- SpaDES.project::setupProject(
 
 
 #annoying steps because scfm is annoying:
-#out$paths$modulePath <- c("modules", "modules/scfm/modules")
-#out$modules <- setdiff(c(out$modules,
-#                         c("scfmDataPrep", "scfmIgnition", "scfmEscape", "scfmSpread")),
- #                    "scfm")
-#out$params$scfmDataPrep$targetN <- 1000 #quick calibration while testing
+out$paths$modulePath <- c("modules", "modules/scfm/modules")
+out$modules <- setdiff(c(out$modules,
+                       c("scfmDataPrep", "scfmIgnition", "scfmEscape", "scfmSpread")),
+                   "scfm")
+
+#  Add scfm params manually since setupProject stips them out
+
+out$params$scfmDataPrep$targetN <- 1000 #quick calibration while testing
+out$params$scfmDataPrep$.useParallelFireRegimePolys = TRUE
 
 
 #fix modules
