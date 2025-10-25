@@ -1,11 +1,15 @@
-# minimal demo of a working SpaDES model with harvesting (using ws3)
+# This is a global setupProject to run a minimal demo of a working SpaDES model with harvesting (using ws3)
+# This includes scfm in order to add stochastic fire
+# Authors: Allen Larocque, Ian Eddy
+# Date: October 2025
+
 repos <- c("https://predictiveecology.r-universe.dev", getOption("repos"))
 source("https://raw.githubusercontent.com/PredictiveEcology/pemisc/refs/heads/development/R/getOrUpdatePkg.R")
 getOrUpdatePkg(c("Require", "SpaDES.project","reticulate"), c("1.0.1.9003", "0.1.1.9037","1.43.0")) # only install/update if required
 
 # Require::Install("PredictiveEcology/Require@hasHEAD (>=0.1.1.9019)", install = "force")
 # Require::Require("PredictiveEcology/reproducible@AI (HEAD)")
-Require::Require("reticulate")   # Necessary to run the optimizer logic below; probably bad and I need to move this back into the setupProject call
+Require::Require("reticulate")   # AL: Necessary to run the optimizer logic below; better fix?
 Require::setLinuxBinaryRepo()
 
 ################################################################################
@@ -13,7 +17,7 @@ Require::setLinuxBinaryRepo()
 out <- SpaDES.project::setupProject(
 
   ### Define local variables (spades_ws3 module parameters)
-  basenames = list("tsa41"),
+  basenames = list("tsa41"),  # This can be a list of basenames backed by G. Paradis' datalad repo. Implemented in Oct 2025: TSA41,40,24,16 and 08. More than one can be run at once.
   scheduler.mode = "optimize", # Change these to set scheduler mode between 'areacontrol' and 'optimize'
   #scheduler.mode<- "areacontrol",
   target.scalefactors={                # these are different depending on scheduler.mode selection
@@ -54,7 +58,7 @@ out <- SpaDES.project::setupProject(
 
 
   options = list(spades.allowInitDuringSimInit = TRUE), # set to true to allow for the running of Init events during simInit
-  # outputs = data.frame(objectName = "landscape"), # do not modify
+  # outputs = data.frame(objectName = "landscape"), # do not modify (AL: I'm not sure what this is for)
   params = list(
     .globals = list(
       .plots = "png",          # write figures to disk
@@ -92,34 +96,23 @@ out <- SpaDES.project::setupProject(
   }
 )
 
-
-#annoying steps because scfm is annoying:
+### Modifications required by scfm:
+# Manually add scfm modules to modulePath and module list:
 out$paths$modulePath <- c("modules", "modules/scfm/modules")
 out$modules <- setdiff(c(out$modules,
                        c("scfmDataPrep", "scfmIgnition", "scfmEscape", "scfmSpread")),
                    "scfm")
 
-#  Add scfm params manually since setupProject stips them out
-
+# Add scfm params manually since setupProject stips them out
 out$params$scfmDataPrep$targetN <- 1000 #quick calibration while testing
 out$params$scfmDataPrep$.useParallelFireRegimePolys = TRUE
 
-
-#fix modules
-#out$modules <- c(
-#    grep("scfm", out$modules, invert = TRUE, value = TRUE),
-#      "scfm/modules/scfmIgnition", "scfm/modules/scfmEscape", "scfm/modules/scfmSpread")
-
-  # #fix modules
-  # out$modules <- c(
-  #   grep("scfm", out$modules, invert = TRUE, value = TRUE),
-  #   "scfm/modules/scfmDataPrep", "scfm/modules/scfmDiagnostics",
-  #   "scfm/modules/scfmIgnition", "scfm/modules/scfmEscape", "scfm/modules/scfmSpread"
-  # )
-
-
+###
 
 simOut <- do.call(SpaDES.core::simInitAndSpades, out)
+
+
+
 
 
 #####
@@ -128,33 +121,8 @@ simOut <- do.call(SpaDES.core::simInitAndSpades, out)
 # import pdb; pdb.set_trace() #put this chunk in to debug python
 #to update ws3, pip install --upgrade ws3
 
-#TODO:
 #TODO: make harvestStats a data.table not a data.frame
 
 
-
-
-#out$modules <- out$modules[grep("cccandies_demo_input", out$modules, invert = TRUE)]   # Fix this
-
-
-
-
-# (Pdb) print(df_targets)
-# vcut   abrn  cflw_acut_e  cgen_vcut_e  cgen_abrn_e
-# tsa   year
-# tsa08 2020  1600000  13000         0.05         0.01         0.01
-# tsa16 2020  1800000   1262         0.05         0.01         0.01
-# tsa24 2020  4000000    494         0.05         0.01         0.01
-# tsa40 2020  2000000   1632         0.05         0.01         0.01
-# tsa41 2020  1200000    336         0.05         0.01         0.01
-
-# tsa   year  AAC     per-year    ha/burned/year
-
-
-
-# cflw_acut_e  cgen_vcut_e
-#these are the constraints around the annual area cut expressed as proportions and  +/- in m3/cut/year
-#so cut 336 wit subsequent cuts +/- 5% (or 4 to 6% of that)
-#cgen_abrn_e is a burn constraint
 
 
