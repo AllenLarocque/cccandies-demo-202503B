@@ -79,8 +79,8 @@ out <- SpaDES.project::setupProject(
   ),
   packages = c("gert", "PredictiveEcology/LandR@development",
                "reticulate", "httr", "RCurl", "XML",
-               "PredictiveEcology/reproducible@AI (>= 2.1.2.9056)",
-               "PredictiveEcology/SpaDES.core@box (>= 2.1.5.9005)"
+               "PredictiveEcology/reproducible@AI (>= 2.1.2.9070)",
+               "PredictiveEcology/SpaDES.core@box (>= 2.1.8.9010)"
   ),
   sppEquiv = {
     spp <- LandR::sppEquivalencies_CA[LandR %in% c("Pinu_con", "Pinu_ban",
