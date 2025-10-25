@@ -82,7 +82,7 @@ out <- SpaDES.project::setupProject(
                         targetN = 1000) #unserious fire param during testing
   ),
   packages = c("gert", "PredictiveEcology/LandR@development",
-               "reticulate", "httr", "RCurl", "XML",
+               "reticulate", "httr", "RCurl", "XML","bcdata",
                "PredictiveEcology/reproducible@AI (>= 2.1.2.9070)",
                "PredictiveEcology/SpaDES.core@box (>= 2.1.8.9010)"
   ),
