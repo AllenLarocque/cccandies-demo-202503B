@@ -1,28 +1,31 @@
 # This is a global setupProject to run a minimal demo of a working SpaDES model with harvesting (using ws3)
 # This includes scfm in order to add stochastic fire
 # Authors: Allen Larocque, Ian Eddy
-# Date: October 2025
+# Date Created: October 31 2025
+# Modified:
 
 repos <- c("https://predictiveecology.r-universe.dev", getOption("repos"))
 source("https://raw.githubusercontent.com/PredictiveEcology/pemisc/refs/heads/development/R/getOrUpdatePkg.R")
 getOrUpdatePkg(c("Require", "SpaDES.project","reticulate"), c("1.0.1.9003", "0.1.1.9037","1.43.0")) # only install/update if required
 
 # Require::Install("PredictiveEcology/Require@hasHEAD (>=0.1.1.9019)", install = "force")
-# Require::Require("PredictiveEcology/reproducible@AI (HEAD)")
+# Require::Require("PredictiveEcology/rep4roducible@AI (HEAD)")
 Require::Require("reticulate")   # AL: Necessary to run the optimizer logic below; better fix?
 Require::setLinuxBinaryRepo()
 
 ################################################################################
 
+
+
 out <- SpaDES.project::setupProject(
 
   ### Define local variables (spades_ws3 module parameters)
-  basenames = list("tsa41"),  # This can be a list of basenames backed by G. Paradis' datalad repo. Implemented in Oct 2025: TSA41,40,24,16 and 08. More than one can be run at once.
+  basenames = list("tsa41","tsa40"),  # This can be a list of basenames backed by G. Paradis' datalad repo. Implemented in Oct 2025: TSA41,40,24,16 and 08. More than one can be run at once.
   scheduler.mode = "optimize", # Change these to set scheduler mode between 'areacontrol' and 'optimize'
   #scheduler.mode<- "areacontrol",
   target.scalefactors={                # these are different depending on scheduler.mode selection
   if (scheduler.mode == "optimize") {
-    py_dict(basenames, list(rep(1.0, times = length(basenames))))
+    py_dict(basenames, as.list(rep(1.0, length(basenames))))
   } else if (scheduler.mode == "areacontrol") {
     NULL
   }
@@ -49,7 +52,7 @@ out <- SpaDES.project::setupProject(
     "PredictiveEcology/spades_ws3_dataInit@dev",
     "PredictiveEcology/spades_ws3@dev",
     "AllenLarocque/spades_ws3_landrAge@PE",
-    "PredictiveEcology/scfm@development"
+    "AllenLarocque/scfm@development"
     #"PredictiveEcology/Biomass_borealDataPrep@development",
     #"PredictiveEcology/Biomass_core@development",
     #"PredictiveEcology/Biomass_regeneration@development",
@@ -57,7 +60,7 @@ out <- SpaDES.project::setupProject(
   ),
 
 
-  options = list(spades.allowInitDuringSimInit = TRUE), # set to true to allow for the running of Init events during simInit
+  #options = list(spades.allowInitDuringSimInit = TRUE), # set to true to allow for the running of Init events during simInit
   # outputs = data.frame(objectName = "landscape"), # do not modify (AL: I'm not sure what this is for)
   params = list(
     .globals = list(
@@ -84,7 +87,7 @@ out <- SpaDES.project::setupProject(
   packages = c("gert", "PredictiveEcology/LandR@development",
                "reticulate", "httr", "RCurl", "XML","bcdata",
                "PredictiveEcology/reproducible@AI (>= 2.1.2.9070)",
-               "PredictiveEcology/SpaDES.core@box (>= 2.1.8.9010)"
+               "PredictiveEcology/SpaDES.core@box (>= 2.1.8.9013)"
   ),
   sppEquiv = {
     spp <- LandR::sppEquivalencies_CA[LandR %in% c("Pinu_con", "Pinu_ban",
@@ -98,23 +101,30 @@ out <- SpaDES.project::setupProject(
 
 ### Modifications required by scfm:
 # Manually add scfm modules to modulePath and module list:
-out$paths$modulePath <- c("modules", "modules/scfm/modules")
-out$modules <- setdiff(c(out$modules,
-                       c("scfmDataPrep", "scfmIgnition", "scfmEscape", "scfmSpread")),
-                   "scfm")
-
-# Add scfm params manually since setupProject stips them out
-out$params$scfmDataPrep$targetN <- 1000 #quick calibration while testing
-out$params$scfmDataPrep$.useParallelFireRegimePolys = TRUE
+ out$paths$modulePath <- c("modules", "modules/scfm/modules")
+ out$modules <- setdiff(c(out$modules,
+                        c("scfmDataPrep","scfmDiagnostics", "scfmIgnition", "scfmEscape", "scfmSpread")),
+                    "scfm")
+#
+# # Add scfm params manually since setupProject stips them out
+ out$params$scfmDataPrep$targetN <- 1000 #quick calibration while testing (at least 2K for real)
+ out$params$scfmDataPrep$.useParallelFireRegimePolys = TRUE
 
 ###
 
+#simInit<-do.call(SpaDES.core::simInit,out)
+
+# debug(SpaDES.core:::.runModuleInputObjects)
 simOut <- do.call(SpaDES.core::simInitAndSpades, out)
 
 
+# Diagnostics:
+source("R/simplePlot.R")
+plotFireWithHarvest(simOut)
 
+simOut$harvestStats
 
-
+simOut
 #####
 # Working project notes:
 
