@@ -6,15 +6,15 @@ plotFireWithHarvest <- function(sim, resInHA = NULL) {
   fireByYear <- fire[, .(area = sum(areaBurned)), .(year)]
   fireByYear[, source := "fire"]
 
-  harvest <- copy(as.data.table(sim$harvestStats))
+  harvest <- data.table::copy(as.data.table(sim$harvestStats))
   harvest[, area := ws3_harvestArea_pixels * resInHA]
   harvest[, source := "harvest"]
   plotData <- rbind(harvest, fireByYear, fill = TRUE)
 
-  ggplot(plotData, aes(x = year, y = area, col = source)) +
-    geom_line() +
-    scale_color_manual(values = c("red", "blue")) +
-    labs(y = "area disturbed (ha)",
+  ggplot2::ggplot(plotData, ggplot2::aes(x = year, y = area, col = source)) +
+    ggplot2::geom_line() +
+    ggplot2::scale_color_manual(values = c("red", "blue")) +
+    ggplot2::labs(y = "area disturbed (ha)",
          title = paste0(sim@params$spades_ws3$basename, " with horizon = ", sim@params$spades_ws3$horizon))
 
 }

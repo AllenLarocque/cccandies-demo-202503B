@@ -120,11 +120,15 @@ simOut <- do.call(SpaDES.core::simInitAndSpades, out)
 
 # Diagnostics:
 source("R/simplePlot.R")
-plotFireWithHarvest(simOut)
+plotFireWithHarvest(simOut) # Only works with a single basename right now
 
+names(simOut)
 simOut$harvestStats
+simOut$scfmSummaryDT
+plot(simOut$burnMap)  # What is this a map of exactly?
 
-simOut
+
+
 #####
 # Working project notes:
 
