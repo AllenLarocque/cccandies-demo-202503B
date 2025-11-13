@@ -21,8 +21,8 @@ out <- SpaDES.project::setupProject(
 
   ### Define local variables (spades_ws3 module parameters)
   basenames = list("tsa41","tsa40"),  # This can be a list of basenames backed by G. Paradis' datalad repo. Implemented in Oct 2025: TSA41,40,24,16 and 08. More than one can be run at once.
-  scheduler.mode = "optimize", # Change these to set scheduler mode between 'areacontrol' and 'optimize'
-  #scheduler.mode<- "areacontrol",
+  #scheduler.mode = "optimize", # Change these to set scheduler mode between 'areacontrol' and 'optimize'
+  scheduler.mode<- "areacontrol",
   target.scalefactors={                # these are different depending on scheduler.mode selection
   if (scheduler.mode == "optimize") {
     py_dict(basenames, as.list(rep(1.0, length(basenames))))
@@ -34,6 +34,7 @@ out <- SpaDES.project::setupProject(
   base.year = 2020,           # first year of harvest planning
   horizon = 10,               # The number of planning periods to include in optimization.
   period_length = 10,         # The number of years between planning periods. Sept 2025: Greg says 'don't change this unless you know what you are doing'
+  planning_period_freq = 10,  # The number of years between planning events. Current implementation has it project the next planning_period_freq of harvests then follow through
   times = list(start = 0, end = 99),                    # used in scfm and LandR. This determines how long the simulation will run
 
   shp.path = "gis/shp",    # path to GIS shape files
@@ -67,7 +68,8 @@ out <- SpaDES.project::setupProject(
       .plots = "png",          # write figures to disk
       basenames = basenames,   # for LandR_age + ws3
       tif.path = tif.path,     # for LandR_age + ws3
-      base.year = base.year    # for LandR_age + ws3
+      base.year = base.year,    # for LandR_age + ws3
+      planning_period_freq = planning_period_freq
     ),
     spades_ws3_dataInit = list(
       GithubURL="git@github.com:UBC-FRESH/cccandies_demo_input.git",
@@ -136,6 +138,8 @@ plot(simOut$burnMap)  # What is this a map of exactly?
 #to update ws3, pip install --upgrade ws3
 
 #TODO: make harvestStats a data.table not a data.frame
+
+
 
 
 
