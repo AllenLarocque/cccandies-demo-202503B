@@ -116,7 +116,7 @@ out <- SpaDES.project::setupProject(
 
 ###
 
-#simInit<-do.call(SpaDES.core::simInit,out)
+outInit<-do.call(SpaDES.core::simInit,out)
 
 # debug(SpaDES.core:::.runModuleInputObjects)
 simOut <- do.call(SpaDES.core::simInitAndSpades, out)
