@@ -21,8 +21,8 @@ out <- SpaDES.project::setupProject(
 
   ### Define local variables (spades_ws3 module parameters)
   basenames = list("tsa41","tsa40"),  # This can be a list of basenames backed by G. Paradis' datalad repo. Implemented in Oct 2025: TSA41,40,24,16 and 08. More than one can be run at once.
-  #scheduler.mode = "optimize", # Change these to set scheduler mode between 'areacontrol' and 'optimize'
-  scheduler.mode<- "areacontrol",
+  scheduler.mode = "optimize", # Change these to set scheduler mode between 'areacontrol' and 'optimize'
+  #scheduler.mode<- "areacontrol",
   target.scalefactors={                # these are different depending on scheduler.mode selection
   if (scheduler.mode == "optimize") {
     py_dict(basenames, as.list(rep(1.0, length(basenames))))
@@ -33,9 +33,9 @@ out <- SpaDES.project::setupProject(
 
   base.year = 2020,           # first year of harvest planning
   horizon = 10,               # The number of planning periods to include in optimization.
-  period_length = 10,         # The number of years between planning periods. Sept 2025: Greg says 'don't change this unless you know what you are doing'
+  #period_length = 10,         # The number of years between planning periods. Sept 2025: Greg says 'don't change this unless you know what you are doing'
   planning_period_freq = 10,  # The number of years between planning events. Current implementation has it project the next planning_period_freq of harvests then follow through
-  times = list(start = 0, end = 99),                    # used in scfm and LandR. This determines how long the simulation will run
+  times = list(start = 0, end = 150),                    # used in scfm and LandR. This determines how long the simulation will run
 
   shp.path = "gis/shp",    # path to GIS shape files
   tif.path = "tif",           # path to tifs within the input directory
@@ -53,7 +53,8 @@ out <- SpaDES.project::setupProject(
     "PredictiveEcology/spades_ws3_dataInit@dev",
     "PredictiveEcology/spades_ws3@dev",
     "AllenLarocque/spades_ws3_landrAge@PE",
-    "AllenLarocque/scfm@development"
+    "AllenLarocque/scfm@development",
+    "AllenLarocque/spades_ws3_diagnostics@main"
     #"PredictiveEcology/Biomass_borealDataPrep@development",
     #"PredictiveEcology/Biomass_core@development",
     #"PredictiveEcology/Biomass_regeneration@development",
@@ -84,7 +85,8 @@ out <- SpaDES.project::setupProject(
                       scheduler.mode = scheduler.mode,
                       target.scalefactors = target.scalefactors),
     scfmDataPrep = list(.useParallelFireRegimePolys = TRUE, #use Greg's cores
-                        targetN = 1000) #unserious fire param during testing
+                        targetN = 1000), #unserious fire param during testing
+    fireHarvestPlots = list(resInHA = NULL) # NULL means calculate from rasterToMatch
   ),
   packages = c("gert", "PredictiveEcology/LandR@development",
                "reticulate", "httr", "RCurl", "XML","bcdata",
@@ -121,13 +123,28 @@ simOut <- do.call(SpaDES.core::simInitAndSpades, out)
 
 
 # Diagnostics:
-source("R/simplePlot.R")
-plotFireWithHarvest(simOut) # Only works with a single basename right now
 
-names(simOut)
-simOut$harvestStats
-simOut$scfmSummaryDT
-plot(simOut$burnMap)  # What is this a map of exactly?
+# What kind of plots will I want?
+
+# Time series of fire and harvest
+# Maps of fire, maps of harvest
+# Cumulative fire; cumulative harvest
+# Harvest: number of first-time harvest, second growth harvest, n-growth harvest
+# Maps of these
+# Time series of 'planned harvest that has been missed due to fire'
+
+
+#source("R/simplePlot.R")
+#plotFireWithHarvest(simOut) # Only works with a single basename right now
+
+#names(simOut)
+#simOut$harvestStats
+#simOut$scfmSummaryDT
+#plot(simOut$burnMap)  # What is this a map of exactly?
+
+
+
+
 
 
 
