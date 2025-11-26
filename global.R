@@ -18,7 +18,9 @@ Require::setLinuxBinaryRepo()
 
 
 out <- SpaDES.project::setupProject(
-
+  require = c("reticulate",
+              "PredictiveEcology/scfmutils@development (>= 2.0.9.9003)",
+              "terra"),
   ### Define local variables (spades_ws3 module parameters)
   basenames = list("tsa41","tsa40"),  # This can be a list of basenames backed by G. Paradis' datalad repo. Implemented in Oct 2025: TSA41,40,24,16 and 08. More than one can be run at once.
   scheduler.mode = "optimize", # Change these to set scheduler mode between 'areacontrol' and 'optimize'
@@ -35,7 +37,7 @@ out <- SpaDES.project::setupProject(
   horizon = 10,               # The number of planning periods to include in optimization.
   #period_length = 10,         # The number of years between planning periods. Sept 2025: Greg says 'don't change this unless you know what you are doing'
   planning_period_freq = 10,  # The number of years between planning events. Current implementation has it project the next planning_period_freq of harvests then follow through
-  times = list(start = 0, end = 150),                    # used in scfm and LandR. This determines how long the simulation will run
+  times = list(start = 0, end = 300),                    # used in scfm and LandR. This determines how long the simulation will run
 
   shp.path = "gis/shp",    # path to GIS shape files
   tif.path = "tif",           # path to tifs within the input directory
@@ -118,8 +120,14 @@ out <- SpaDES.project::setupProject(
 
 outInit<-do.call(SpaDES.core::simInit,out)
 
+
 # debug(SpaDES.core:::.runModuleInputObjects)
 simOut <- do.call(SpaDES.core::simInitAndSpades, out)
+
+
+
+
+
 
 
 # Diagnostics:
@@ -140,7 +148,7 @@ simOut <- do.call(SpaDES.core::simInitAndSpades, out)
 #names(simOut)
 #simOut$harvestStats
 #simOut$scfmSummaryDT
-#plot(simOut$burnMap)  # What is this a map of exactly?
+plot(simOut$burnMap)  # What is this a map of exactly?
 
 
 
