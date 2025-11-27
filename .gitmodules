@@ -28,3 +28,6 @@
 [submodule "modules/spades_ws3_diagnostics"]
 	path = modules/spades_ws3_diagnostics
 	url = https://github.com/AllenLarocque/spades_ws3_diagnostics
+[submodule "modules/spades_ws3_diag_FRESH"]
+	path = modules/spades_ws3_diag_FRESH
+	url = https://github.com/AllenLarocque/spades_ws3_diag_FRESH

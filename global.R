@@ -26,16 +26,18 @@ Require::setLinuxBinaryRepo()
 ## Comment out for batch runs:
 # From here:
 #######
-
+#
 # basenames = list("tsa41","tsa40")
 # base.year = 2020
 # horizon= 10
 # period_length=10
 # planning_period_freq = 10
 # scheduler.mode = "optimize"
-# times = list(start = 0, end = 10)
-# .rep = 1
+# times = list(start = 0, end = 5)
+# .rep = "1_optimize"
 # .cores = c("sbw")
+# fireMultiplier = 1.0
+#
 #
 # modules = c(
 #   "PredictiveEcology/spades_ws3_dataInit@dev",
@@ -77,7 +79,7 @@ inSim <- SpaDES.project::setupProject(
   .rep=.rep,                                  # Number of replicates. Not currently implemented
   .cores=.cores,                              # Which computer core to use. Not currently implemented
   modules=modules,                            # Which modules to include?
-
+  fireMultiplier = fireMultiplier,
 
   # Defaults
   defaultDots = list(basenames = list("tsa41","tsa40"),
@@ -87,12 +89,14 @@ inSim <- SpaDES.project::setupProject(
                      planning_period_freq = 10,
                      scheduler.mode = "optimize",
                      times = list(start = 0, end = 10),
-                     .rep = 1,
+                     .rep = "1_optimize",
                      .cores = c("sbw"),
+                     fireMultiplier = 1.0,
                      modules=c("PredictiveEcology/spades_ws3_dataInit@dev",
                                "PredictiveEcology/spades_ws3@dev",
                                "AllenLarocque/spades_ws3_landrAge@PE",
-                               "AllenLarocque/spades_ws3_diagnostics@main")
+                               "AllenLarocque/spades_ws3_diag_FRESH@main",
+                               "AllenLarocque/spades_ws3_scfm_diag_FRESH@main")
                      ),
 
   target.scalefactors={                # This is how much to 'scale back' harvest, by proportion. This logic is here since it must be different formats depending on scheduler.mode selection
@@ -137,7 +141,7 @@ inSim <- SpaDES.project::setupProject(
     scfmDataPrep = list(.useParallelFireRegimePolys = TRUE, #use Greg's cores
                         targetN = 1000), #unserious fire param during testing
     fireHarvestPlots = list(resInHA = NULL), # NULL means calculate from rasterToMatch
-    scfmRegime = list(fireMultiplier = 1.0)  # Multiplier to scale fire at parameter estimation (1.0 = normal, 2.0 = double, 0.0 = no fire). Scales targetBurnRate relative to observed data.
+    scfmRegime = list(fireMultiplier = fireMultiplier)  # Multiplier to scale fire at parameter estimation (1.0 = normal, 2.0 = double, 0.0 = no fire). Scales targetBurnRate relative to observed data.
   ),
   packages = c("gert", "PredictiveEcology/LandR@development",
                "reticulate", "httr", "RCurl", "XML","bcdata",
@@ -175,8 +179,11 @@ if (any(grepl("scfm", inSim$modules, ignore.case = TRUE))) {
 
 
 # debug(SpaDES.core:::.runModuleInputObjects)
-outInit <- do.call(SpaDES.core::simInit, inSim)
-outSim <- do.call(SpaDES.core::spades, outInit)
+#readySim <- do.call(SpaDES.core::simInit, inSim)
+#outSim<-spades(readySim)
+
+outSim <- do.call(SpaDES.core::simInitAndSpades, inSim)
+
 
 
 
