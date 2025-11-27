@@ -4,65 +4,113 @@
 # Date Created: October 31 2025
 # Modified:
 
+
+# install Require and SpaDES.project
 repos <- c("https://predictiveecology.r-universe.dev", getOption("repos"))
 source("https://raw.githubusercontent.com/PredictiveEcology/pemisc/refs/heads/development/R/getOrUpdatePkg.R")
-getOrUpdatePkg(c("Require", "SpaDES.project","reticulate"), c("1.0.1.9003", "0.1.1.9037","1.43.0")) # only install/update if required
+getOrUpdatePkg(c("Require", "SpaDES.project"), c("1.0.1.9003", "0.1.1.9037")) # only install/update if required
 
-# Require::Install("PredictiveEcology/Require@hasHEAD (>=0.1.1.9019)", install = "force")
-# Require::Require("PredictiveEcology/rep4roducible@AI (HEAD)")
-Require::Require("reticulate")   # AL: Necessary to run the optimizer logic below; better fix?
+#getOrUpdatePkg(c("Require", "SpaDES.project","reticulate"), c("1.0.1.9003", "0.1.1.9037","1.43.0")) # only install/update if required
+
+#Require::Require("reticulate")   # AL: Necessary to run the optimizer logic below; better fix?
 Require::setLinuxBinaryRepo()
+
+# Generic absolute path for anybody; but individual can change
+#projectDir <- "~/projects/WS3/cccandies-demo-202503B/"
+#dir.create(projectDir, recursive = TRUE, showWarnings = FALSE)
+#setwd(projectDir)
+
 
 ################################################################################
 
+## Comment out for batch runs:
+# From here:
+#######
+
+# basenames = list("tsa41","tsa40")
+# base.year = 2020
+# horizon= 10
+# period_length=10
+# planning_period_freq = 10
+# scheduler.mode = "optimize"
+# times = list(start = 0, end = 10)
+# .rep = 1
+# .cores = c("sbw")
+#
+# modules = c(
+#   "PredictiveEcology/spades_ws3_dataInit@dev",
+#   "PredictiveEcology/spades_ws3@dev",
+#   "AllenLarocque/spades_ws3_landrAge@PE",
+#   "AllenLarocque/scfm@development",
+#   "AllenLarocque/spades_ws3_diagnostics@main"
+#   #"PredictiveEcology/Biomass_borealDataPrep@development",
+#   #"PredictiveEcology/Biomass_core@development",
+#   #"PredictiveEcology/Biomass_regeneration@development",
+#   #"ianmseddy/LandR_reforestation@master"
+# )
+
+#######
+# To here
 
 
-out <- SpaDES.project::setupProject(
+inSim <- SpaDES.project::setupProject(
   require = c("reticulate",
               "PredictiveEcology/scfmutils@development (>= 2.0.9.9003)",
               "terra"),
-  ### Define local variables (spades_ws3 module parameters)
-  basenames = list("tsa41","tsa40"),  # This can be a list of basenames backed by G. Paradis' datalad repo. Implemented in Oct 2025: TSA41,40,24,16 and 08. More than one can be run at once.
-  scheduler.mode = "optimize", # Change these to set scheduler mode between 'areacontrol' and 'optimize'
-  #scheduler.mode<- "areacontrol",
-  target.scalefactors={                # these are different depending on scheduler.mode selection
-  if (scheduler.mode == "optimize") {
-    py_dict(basenames, as.list(rep(1.0, length(basenames))))
-  } else if (scheduler.mode == "areacontrol") {
-    NULL
-  }
-  },
 
-  base.year = 2020,           # first year of harvest planning
-  horizon = 10,               # The number of planning periods to include in optimization.
-  #period_length = 10,         # The number of years between planning periods. Sept 2025: Greg says 'don't change this unless you know what you are doing'
-  planning_period_freq = 10,  # The number of years between planning events. Current implementation has it project the next planning_period_freq of harvests then follow through
-  times = list(start = 0, end = 300),                    # used in scfm and LandR. This determines how long the simulation will run
+  ### Define local variables (spades_ws3 module parameters)
 
   shp.path = "gis/shp",    # path to GIS shape files
   tif.path = "tif",           # path to tifs within the input directory
   target.masks = list(c('? ? ? ?')), # do not modify. AL: I don't know what this is
 
+
+
+  # Modifiable via expr.R. Defaults are defined below:
+  basenames=basenames,                        # A list of 'basenames' to use. Depends on the datalad datastructure prepared by Greg Paradis and the UBC FRESH lab.
+  base.year=base.year,                        # first year of harvest planning
+  horizon=horizon,                            # The number of planning periods to include in optimization
+  period_length=period_length,                # The length of time that WS3 bins in the optimization algorithm
+  planning_period_freq=planning_period_freq,  # The number of years between planning events.
+  scheduler.mode=scheduler.mode,              # Change these to set scheduler mode between 'areacontrol' and 'optimize'
+  times=times,                                # Used in scfm and LandR. This determines how long the simulation will run
+  .rep=.rep,                                  # Number of replicates. Not currently implemented
+  .cores=.cores,                              # Which computer core to use. Not currently implemented
+  modules=modules,                            # Which modules to include?
+
+
+  # Defaults
+  defaultDots = list(basenames = list("tsa41","tsa40"),
+                     base.year = 2020,
+                     horizon= 10,
+                     period_length=10,
+                     planning_period_freq = 10,
+                     scheduler.mode = "optimize",
+                     times = list(start = 0, end = 10),
+                     .rep = 1,
+                     .cores = c("sbw"),
+                     modules=c("PredictiveEcology/spades_ws3_dataInit@dev",
+                               "PredictiveEcology/spades_ws3@dev",
+                               "AllenLarocque/spades_ws3_landrAge@PE",
+                               "AllenLarocque/spades_ws3_diagnostics@main")
+                     ),
+
+  target.scalefactors={                # This is how much to 'scale back' harvest, by proportion. This logic is here since it must be different formats depending on scheduler.mode selection
+    if (scheduler.mode == "optimize") {
+      py_dict(basenames, as.list(rep(1.0, length(basenames))))
+    } else if (scheduler.mode == "areacontrol") {
+      NULL
+    }
+  },
   ###
 
   useGit = "eliotmcintire",
-  paths = list(projectPath = file.path(getwd()),
-               modulePath = file.path("modules"),
-               inputPath = file.path('input'),
-               outputPath = file.path('output'),
-               cachePath = file.path('cache')),
-  modules = c(
-    "PredictiveEcology/spades_ws3_dataInit@dev",
-    "PredictiveEcology/spades_ws3@dev",
-    "AllenLarocque/spades_ws3_landrAge@PE",
-    "AllenLarocque/scfm@development",
-    "AllenLarocque/spades_ws3_diagnostics@main"
-    #"PredictiveEcology/Biomass_borealDataPrep@development",
-    #"PredictiveEcology/Biomass_core@development",
-    #"PredictiveEcology/Biomass_regeneration@development",
-    #"ianmseddy/LandR_reforestation@master"
-  ),
-
+  paths = list(modulePath = file.path("modules"),
+               outputPath = file.path('output',.rep),
+               projectPath = file.path(getwd()),
+               inputPath = file.path('input',.rep),
+               cachePath = file.path('cache')
+               ),
 
   #options = list(spades.allowInitDuringSimInit = TRUE), # set to true to allow for the running of Init events during simInit
   # outputs = data.frame(objectName = "landscape"), # do not modify (AL: I'm not sure what this is for)
@@ -88,7 +136,8 @@ out <- SpaDES.project::setupProject(
                       target.scalefactors = target.scalefactors),
     scfmDataPrep = list(.useParallelFireRegimePolys = TRUE, #use Greg's cores
                         targetN = 1000), #unserious fire param during testing
-    fireHarvestPlots = list(resInHA = NULL) # NULL means calculate from rasterToMatch
+    fireHarvestPlots = list(resInHA = NULL), # NULL means calculate from rasterToMatch
+    scfmRegime = list(fireMultiplier = 1.0)  # Multiplier to scale fire at parameter estimation (1.0 = normal, 2.0 = double, 0.0 = no fire). Scales targetBurnRate relative to observed data.
   ),
   packages = c("gert", "PredictiveEcology/LandR@development",
                "reticulate", "httr", "RCurl", "XML","bcdata",
@@ -106,23 +155,28 @@ out <- SpaDES.project::setupProject(
 )
 
 ### Modifications required by scfm:
-# Manually add scfm modules to modulePath and module list:
- out$paths$modulePath <- c("modules", "modules/scfm/modules")
- out$modules <- setdiff(c(out$modules,
-                        c("scfmDataPrep","scfmDiagnostics", "scfmIgnition", "scfmEscape", "scfmSpread")),
-                    "scfm")
-#
-# # Add scfm params manually since setupProject stips them out
- out$params$scfmDataPrep$targetN <- 1000 #quick calibration while testing (at least 2K for real)
- out$params$scfmDataPrep$.useParallelFireRegimePolys = TRUE
+# (Only run if a module with 'scfm' in the name is in the module list)
+if (any(grepl("scfm", inSim$modules, ignore.case = TRUE))) {
+  # Manually add scfm modules to modulePath and module list:
+  inSim$paths$modulePath <- c("modules", "modules/scfm/modules")
+  inSim$modules <- setdiff(c(inSim$modules,
+                          c("scfmDataPrep","scfmDiagnostics", "scfmIgnition", "scfmEscape", "scfmSpread")),
+                      "scfm")
+
+  # Add scfm params manually since setupProject strips them out
+  inSim$params$scfmDataPrep$targetN <- 1000 #quick calibration while testing (at least 2K for real)
+  inSim$params$scfmDataPrep$.useParallelFireRegimePolys = TRUE
+}
 
 ###
 
-outInit<-do.call(SpaDES.core::simInit,out)
+# Run init:
+#outInit<-do.call(SpaDES.core::simInit,inSim)
 
 
 # debug(SpaDES.core:::.runModuleInputObjects)
-simOut <- do.call(SpaDES.core::simInitAndSpades, out)
+outInit <- do.call(SpaDES.core::simInit, inSim)
+outSim <- do.call(SpaDES.core::spades, outInit)
 
 
 
@@ -148,7 +202,7 @@ simOut <- do.call(SpaDES.core::simInitAndSpades, out)
 #names(simOut)
 #simOut$harvestStats
 #simOut$scfmSummaryDT
-plot(simOut$burnMap)  # What is this a map of exactly?
+#plot(simOut$burnMap)  # What is this a map of exactly?
 
 
 
