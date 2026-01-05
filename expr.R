@@ -22,7 +22,7 @@ R -e 'basenames <- list("tsa41","tsa40");
                                 "AllenLarocque/scfm@development",
                                 "AllenLarocque/spades_ws3_diag_FRESH@main",
                                 "AllenLarocque/spades_ws3_scfm_diag_FRESH@main");
-                   source("global.R")'
+                   source("global_expr.R")'
 
 # Without fire:
 R -e 'basenames <- list("tsa41","tsa40");
@@ -39,9 +39,7 @@ R -e 'basenames <- list("tsa41","tsa40");
                                 "AllenLarocque/spades_ws3_landrAge@PE",
                                 "AllenLarocque/spades_ws3_diag_FRESH@main",
                                 );
-                   source("global.R")'
-
-
+                   source("global_expr.R")'
 
 
 

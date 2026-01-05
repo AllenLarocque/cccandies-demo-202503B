@@ -26,30 +26,29 @@ Require::setLinuxBinaryRepo()
 ## Comment out for batch runs:
 # From here:
 #######
-
-basenames = list("tsa41","tsa40")
-base.year = 2020
-horizon= 10
-period_length=10
-planning_period_freq = 10
-scheduler.mode = "optimize"
-times = list(start = 0, end = 10)
-.rep = "1_optimize"
-.cores = c("sbw")
-
-
-modules = c(
-  "PredictiveEcology/spades_ws3_dataInit@dev",
-  "PredictiveEcology/spades_ws3@dev",
-  "AllenLarocque/spades_ws3_landrAge@PE",
-  "AllenLarocque/scfm@development",                  # TEMP: this scfm branch contains 'fire multiplier' features
-  "AllenLarocque/spades_ws3_diag_FRESH@main",        # This module contains diagnostic plots for the WS3_FRESH module
-  "AllenLarocque/spades_ws3_scfm_diag_FRESH@main"    # This module contains diagnostic plots for the WS3_FRESH_scfm module
-  #"PredictiveEcology/Biomass_borealDataPrep@development",
-  #"PredictiveEcology/Biomass_core@development",
-  #"PredictiveEcology/Biomass_regeneration@development",
-  #"ianmseddy/LandR_reforestation@master"
-)
+#
+# basenames = list("tsa41","tsa40")
+# base.year = 2020
+# horizon= 10
+# period_length=10
+# planning_period_freq = 10
+# scheduler.mode = "optimize"
+# times = list(start = 0, end = 200)
+# .rep = "1_optimize"
+# .cores = c("sbw")
+#
+#
+# modules = c(
+#   "PredictiveEcology/spades_ws3_dataInit@dev",
+#   "PredictiveEcology/spades_ws3@dev",
+#   "AllenLarocque/spades_ws3_landrAge@PE",
+#   "AllenLarocque/scfm@development",
+#   "AllenLarocque/spades_ws3_diagnostics@main"
+#   #"PredictiveEcology/Biomass_borealDataPrep@development",
+#   #"PredictiveEcology/Biomass_core@development",
+#   #"PredictiveEcology/Biomass_regeneration@development",
+#   #"ianmseddy/LandR_reforestation@master"
+# )
 
 #######
 # To here
@@ -95,8 +94,8 @@ inSim <- SpaDES.project::setupProject(
                      modules=c("PredictiveEcology/spades_ws3_dataInit@dev",
                                "PredictiveEcology/spades_ws3@dev",
                                "AllenLarocque/spades_ws3_landrAge@PE",
-                               "AllenLarocque/scfm@development",
                                "AllenLarocque/spades_ws3_diag_FRESH@main",
+                               "AllenLarocque/scfm@development",
                                "AllenLarocque/spades_ws3_scfm_diag_FRESH@main")
                      ),
 
@@ -185,49 +184,9 @@ if (any(grepl("scfm", inSim$modules, ignore.case = TRUE))) {
 
 outSim <- do.call(SpaDES.core::simInitAndSpades, inSim)
 
-# Caution, this takes abotu a half hour:
-#SpaDES.core::saveSimList(outSim, file = "outSim.rds",files=F)
-
-# To see what's in the ython environment namespace, use:
-reticulate::py$`__dict__`
-
-# Q: save outputs from every forestmodel instance?
-# This way I can query how the plan at time x diverges from what happens
-
-
-# py$fm is the forestmodel instance
-py$fm
-# Can access it with functions like this:
-py$fm$inventory(period=5)
-py$fm$operable_area(period=5,acode=10)
-
-py$fm$nthemes()
-py$fm$tree
-
-landscape_data<-values(outSim$landscape)
-print(landscape_data)
 
 
 
-# Prepare plotting data
-outSim$harvestStats
-outSim$burnSummary
-
-
-
-
-
-# WS3_plots
-# Harvested area
-# Harvested volume
-# Growing stock
-# Age class
-
-# WS3_scfm plots
-# Burned area
-# Burned volume
-# Growing stock
-# Age classes
 
 
 
