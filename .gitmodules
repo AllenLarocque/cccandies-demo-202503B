@@ -1,10 +1,5 @@
 	url = https://github.com/PredictiveEcology/spades_ws3_dataInit
-[submodule "modules/spades_ws3"]
-	path = modules/spades_ws3
 	url = https://github.com/PredictiveEcology/spades_ws3
-[submodule "modules/spades_ws3_landrAge"]
-	path = modules/spades_ws3_landrAge
-	url = git@github.com:AllenLarocque/spades_ws3_landrAge.git
 [submodule "modules/scfm"]
 	path = modules/scfm
 	url = https://github.com/PredictiveEcology/scfm
@@ -23,9 +18,3 @@
 [submodule "modules/simpleHarvest"]
 	path = modules/simpleHarvest
 	url = https://github.com/pkalanta/simpleHarvest
-[submodule "modules/spades_ws3_diagnostics"]
-	path = modules/spades_ws3_diagnostics
-	url = https://github.com/AllenLarocque/spades_ws3_diagnostics
-[submodule "modules/spades_ws3_diag_FRESH"]
-	path = modules/spades_ws3_diag_FRESH
-	url = https://github.com/AllenLarocque/spades_ws3_diag_FRESH
