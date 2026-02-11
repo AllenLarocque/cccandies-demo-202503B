@@ -4,45 +4,48 @@
 # Date Created: October 31 2025
 # Modified:
 
+## Currently WIP global pending
 
-# install Require and SpaDES.project
-repos <- c("https://predictiveecology.r-universe.dev", getOption("repos"))
-source("https://raw.githubusercontent.com/PredictiveEcology/pemisc/refs/heads/development/R/getOrUpdatePkg.R")
-getOrUpdatePkg(c("Require", "SpaDES.project"), c("1.0.1.9003", "0.1.1.9037")) # only install/update if required
+# Bootstrap setup:
+repos <- c("https://predictiveecology.r-universe.dev", getOption("repos"))     # Define a list of repos; add r-universe to the beginning of the repo list
+source("https://raw.githubusercontent.com/PredictiveEcology/pemisc/refs/heads/development/R/getOrUpdatePkg.R")   # Source the getOrUpdatePkg function
+getOrUpdatePkg(c("Require", "SpaDES.project","reticulate"),
+               c("1.0.1.9003", "0.1.1.9037","1.43.0")) # This checks if the version is newer than the one defined in the list, and only installs/updates if it is not
 
-#getOrUpdatePkg(c("Require", "SpaDES.project","reticulate"), c("1.0.1.9003", "0.1.1.9037","1.43.0")) # only install/update if required
+# Install SpaDES.project if needed and related packages:
+if (!require("SpaDES.project")){
+  Require::Require(c("SpaDES.project", "SpaDES.core", "reproducible"),
+                   repos = repos,
+                   dependencies = TRUE)
+}
 
-#Require::Require("reticulate")   # AL: Necessary to run the optimizer logic below; better fix?
-Require::setLinuxBinaryRepo()
-
-# Generic absolute path for anybody; but individual can change
-#projectDir <- "~/projects/WS3/cccandies-demo-202503B/"
-#dir.create(projectDir, recursive = TRUE, showWarnings = FALSE)
-#setwd(projectDir)
-
+Require::setLinuxBinaryRepo()  # Use pre-compiled binary packages for Linux instead of compiling from source. This should be faster, be more stable, and work better without root access.
 
 ################################################################################
 
-## Comment out for batch runs:
+## TEMP: For single run testing, use this:
+## Comment out for batch runs using experiment3 or experiment.R!
 # From here:
 #######
 
 basenames = list("tsa41","tsa40")
 base.year = 2020
-horizon= 10
+horizon= 20
 period_length=10
-planning_period_freq = 10
+planning_period_freq = 10 # TEMP: Keep the same as period_length for now
 scheduler.mode = "optimize"
-times = list(start = 0, end = 10)
+times = list(start = 0, end = 200)
 .rep = "1_optimize"
 .cores = c("sbw")
+n_ws3_workers=10L
+fireMultiplier = 1.0
 
 
 modules = c(
   "PredictiveEcology/spades_ws3_dataInit@dev",
   "PredictiveEcology/spades_ws3@dev",
   "AllenLarocque/spades_ws3_landrAge@PE",
-  "AllenLarocque/scfm@development",                  # TEMP: this scfm branch contains 'fire multiplier' features
+  "AllenLarocque/scfm@development",                 # TEMP: this scfm branch contains 'fire multiplier' features
   "AllenLarocque/spades_ws3_diag_FRESH@main",        # This module contains diagnostic plots for the WS3_FRESH module
   "AllenLarocque/spades_ws3_scfm_diag_FRESH@main"    # This module contains diagnostic plots for the WS3_FRESH_scfm module
   #"PredictiveEcology/Biomass_borealDataPrep@development",
@@ -60,15 +63,22 @@ inSim <- SpaDES.project::setupProject(
               "PredictiveEcology/scfmutils@development (>= 2.0.9.9003)",
               "terra"),
 
-  ### Define local variables (spades_ws3 module parameters)
+  # Paths:
+  #useGit = "eliotmcintire",
+  useGit = "allenlarocque",
+  paths = list(modulePath = file.path("modules"),
+               outputPath = file.path('output',.rep),
+               projectPath = file.path(getwd()),
+               inputPath = file.path('input',.rep),
+               cachePath = file.path('cache')
+  ),
 
+  ### Define local variables (spades_ws3 module parameters)
   shp.path = "gis/shp",    # path to GIS shape files
   tif.path = "tif",           # path to tifs within the input directory
   target.masks = list(c('? ? ? ?')), # do not modify. AL: I don't know what this is
 
-
-
-  # Modifiable via expr.R. Defaults are defined below:
+  # The below are modifiable in expr.R. Defaults are defined in defaultDots below:
   basenames=basenames,                        # A list of 'basenames' to use. Depends on the datalad datastructure prepared by Greg Paradis and the UBC FRESH lab.
   base.year=base.year,                        # first year of harvest planning
   horizon=horizon,                            # The number of planning periods to include in optimization
@@ -79,7 +89,8 @@ inSim <- SpaDES.project::setupProject(
   .rep=.rep,                                  # Number of replicates. Not currently implemented
   .cores=.cores,                              # Which computer core to use. Not currently implemented
   modules=modules,                            # Which modules to include?
-  fireMultiplier = fireMultiplier,
+  fireMultiplier = fireMultiplier,            # SCFM 'fire multiplier'. Make more stuff burn or less. CURRENTLY BROKEN
+  n_ws3_workers=n_ws3_workers,                # The number of workers for WS3. Pass as an integer
 
   # Defaults
   defaultDots = list(basenames = list("tsa41","tsa40"),
@@ -88,57 +99,53 @@ inSim <- SpaDES.project::setupProject(
                      period_length=10,
                      planning_period_freq = 10,
                      scheduler.mode = "optimize",
-                     times = list(start = 0, end = 10),
+                     times = list(start = 0, end = 100),
                      .rep = "1_optimize",
                      .cores = c("sbw"),
                      fireMultiplier = 1.0,
+                     n_ws3_workers=1L,
                      modules=c("PredictiveEcology/spades_ws3_dataInit@dev",
                                "PredictiveEcology/spades_ws3@dev",
                                "AllenLarocque/spades_ws3_landrAge@PE",
-                               "AllenLarocque/scfm@development",
-                               "AllenLarocque/spades_ws3_diag_FRESH@main",
-                               "AllenLarocque/spades_ws3_scfm_diag_FRESH@main")
-                     ),
-
-  target.scalefactors={                # This is how much to 'scale back' harvest, by proportion. This logic is here since it must be different formats depending on scheduler.mode selection
+                               "AllenLarocque/scfm@master")
+                               #"AllenLarocque/spades_ws3_diag_FRESH@main",
+                               #"AllenLarocque/spades_ws3_scfm_diag_FRESH@main")
+  ),
+  target.scalefactors={                # This is how much to 'scale back' harvest, by proportion. The 'if' logic is here since it must be different formats depending on scheduler.mode selection
     if (scheduler.mode == "optimize") {
       py_dict(basenames, as.list(rep(1.0, length(basenames))))
     } else if (scheduler.mode == "areacontrol") {
       NULL
     }
   },
-  ###
 
-  useGit = "eliotmcintire",
-  paths = list(modulePath = file.path("modules"),
-               outputPath = file.path('output',.rep),
-               projectPath = file.path(getwd()),
-               inputPath = file.path('input',.rep),
-               cachePath = file.path('cache')
-               ),
-
-  #options = list(spades.allowInitDuringSimInit = TRUE), # set to true to allow for the running of Init events during simInit
-  # outputs = data.frame(objectName = "landscape"), # do not modify (AL: I'm not sure what this is for)
+  # Params:
   params = list(
-    .globals = list(
-      .plots = "png",          # write figures to disk
-      basenames = basenames,   # for LandR_age + ws3
-      tif.path = tif.path,     # for LandR_age + ws3
-      base.year = base.year,    # for LandR_age + ws3
-      planning_period_freq = planning_period_freq
+    .globals = list(.plots = "png",           # write figures to disk
+                    basenames = basenames,    # for LandR_age + ws3
+                    tif.path = tif.path,      # for LandR_age + ws3
+                    base.year = base.year,    # for LandR_age + ws3
+                    planning_period_freq = planning_period_freq,
+                    saveFM = TRUE,                      # Enable saving of ws3 forestmodel (fm) objects
+                    saveFM.path = "fm_checkpoints"      # path to save fm objects
     ),
-    spades_ws3_dataInit = list(
-      GithubURL="git@github.com:UBC-FRESH/cccandies_demo_input.git",
-      .saveInitialTime = 0,
-      .saveInterval = 1,
-      .saveObjects = c("landscape"),
-      .savePath = file.path(paths$outputPath, "landscape")),
+    spades_ws3_dataInit = list(GithubURL="git@github.com:UBC-FRESH/cccandies_demo_input.git",
+                               .saveInitialTime = 0,
+                               .saveInterval = 1,
+                               .saveObjects = c("landscape"),
+                               .savePath = file.path(paths$outputPath, "landscape"),
+                               merge.approach = c("mosaic")),   # What terra function to use for merging landscape rasters? Use terra:mosaic if neighbouring cells blend incorrectly; terra:merge may be faster. Mosaic is default.
     spades_ws3 = list(basenames = basenames,
                       horizon = horizon,
                       enable.debugpy = FALSE,
                       base.year = base.year,
                       scheduler.mode = scheduler.mode,
-                      target.scalefactors = target.scalefactors),
+                      target.scalefactors = target.scalefactors,
+                      workers=n_ws3_workers,
+                      saveFM = TRUE,                    # Enable saving
+                      saveFM.path = "fm_checkpoints"),
+    spades_ws3_diag_FRESH = list(.plotInitialTime = 0,
+                                 .plotInterval = 1),
     scfmDataPrep = list(.useParallelFireRegimePolys = TRUE, #use Greg's cores
                         targetN = 1000), #unserious fire param during testing
     fireHarvestPlots = list(resInHA = NULL), # NULL means calculate from rasterToMatch
@@ -165,8 +172,8 @@ if (any(grepl("scfm", inSim$modules, ignore.case = TRUE))) {
   # Manually add scfm modules to modulePath and module list:
   inSim$paths$modulePath <- c("modules", "modules/scfm/modules")
   inSim$modules <- setdiff(c(inSim$modules,
-                          c("scfmDataPrep","scfmDiagnostics", "scfmIgnition", "scfmEscape", "scfmSpread")),
-                      "scfm")
+                             c("scfmDataPrep","scfmDiagnostics", "scfmIgnition", "scfmEscape", "scfmSpread")),
+                           "scfm")
 
   # Add scfm params manually since setupProject strips them out
   inSim$params$scfmDataPrep$targetN <- 1000 #quick calibration while testing (at least 2K for real)
@@ -178,40 +185,43 @@ if (any(grepl("scfm", inSim$modules, ignore.case = TRUE))) {
 # Run init:
 #outInit<-do.call(SpaDES.core::simInit,inSim)
 
-
 # debug(SpaDES.core:::.runModuleInputObjects)
 #readySim <- do.call(SpaDES.core::simInit, inSim)
-#outSim<-spades(readySim)
+#sim<-spades(readySim)
 
-outSim <- do.call(SpaDES.core::simInitAndSpades, inSim)
+sim <- do.call(SpaDES.core::simInitAndSpades, inSim)
+
+
+
+
 
 # Caution, this takes abotu a half hour:
 #SpaDES.core::saveSimList(outSim, file = "outSim.rds",files=F)
 
 # To see what's in the ython environment namespace, use:
-reticulate::py$`__dict__`
+#reticulate::py$`__dict__`
 
 # Q: save outputs from every forestmodel instance?
 # This way I can query how the plan at time x diverges from what happens
 
 
 # py$fm is the forestmodel instance
-py$fm
-# Can access it with functions like this:
-py$fm$inventory(period=5)
-py$fm$operable_area(period=5,acode=10)
+#py$fm
+## Can access it with functions like this:
+##py$fm$inventory(period=5)
+#py$fm$operable_area(period=5,acode=10)
 
-py$fm$nthemes()
-py$fm$tree
+#py$fm$nthemes()
+#py$fm$tree
 
-landscape_data<-values(outSim$landscape)
-print(landscape_data)
+##landscape_data<-values(outSim$landscape)
+#print(landscape_data)
 
 
 
 # Prepare plotting data
-outSim$harvestStats
-outSim$burnSummary
+#outSim$harvestStats
+#outSim$burnSummary
 
 
 
@@ -251,18 +261,6 @@ outSim$burnSummary
 #simOut$harvestStats
 #simOut$scfmSummaryDT
 #plot(simOut$burnMap)  # What is this a map of exactly?
-
-
-
-
-
-
-
-#####
-# Working project notes:
-
-# import pdb; pdb.set_trace() #put this chunk in to debug python
-#to update ws3, pip install --upgrade ws3
 
 #TODO: make harvestStats a data.table not a data.frame
 
