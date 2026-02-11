@@ -1,7 +1,5 @@
 	url = https://github.com/PredictiveEcology/spades_ws3_dataInit
 	url = https://github.com/PredictiveEcology/spades_ws3
-[submodule "modules/scfm"]
-	path = modules/scfm
 	url = https://github.com/PredictiveEcology/scfm
 [submodule "modules/Biomass_borealDataPrep"]
 	path = modules/Biomass_borealDataPrep
@@ -21,3 +19,6 @@
 [submodule "modules/spades_ws3"]
 	path = modules/spades_ws3
 	url = https://github.com/AllenLarocque/spades_ws3
+[submodule "modules/spades_ws3_landrAge"]
+	path = modules/spades_ws3_landrAge
+	url = https://github.com/AllenLarocque/spades_ws3_landrAge
