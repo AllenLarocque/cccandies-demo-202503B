@@ -42,12 +42,12 @@ fireMultiplier = 1.0
 
 
 modules = c(
-  "PredictiveEcology/spades_ws3_dataInit@dev",
-  "PredictiveEcology/spades_ws3@dev",
+  "AllenLarocque/spades_ws3_dataInit@dev",
+  "AllenLarocque/spades_ws3@dev",
   "AllenLarocque/spades_ws3_landrAge@PE",
   "AllenLarocque/scfm@development",                 # TEMP: this scfm branch contains 'fire multiplier' features
-  "AllenLarocque/spades_ws3_diag_FRESH@main",        # This module contains diagnostic plots for the WS3_FRESH module
-  "AllenLarocque/spades_ws3_scfm_diag_FRESH@main"    # This module contains diagnostic plots for the WS3_FRESH_scfm module
+  #"AllenLarocque/spades_ws3_diag_FRESH@main",        # This module contains diagnostic plots for the WS3_FRESH module
+  #"AllenLarocque/spades_ws3_scfm_diag_FRESH@main"    # This module contains diagnostic plots for the WS3_FRESH_scfm module
   #"PredictiveEcology/Biomass_borealDataPrep@development",
   #"PredictiveEcology/Biomass_core@development",
   #"PredictiveEcology/Biomass_regeneration@development",
