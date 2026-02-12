@@ -58,7 +58,7 @@ modules = c(
 # To here
 
 
-inSim <- SpaDES.project::setupProject(
+simin <- SpaDES.project::setupProject(
   require = c("reticulate",
               "PredictiveEcology/scfmutils@development (>= 2.0.9.9003)",
               "terra"),
@@ -74,8 +74,8 @@ inSim <- SpaDES.project::setupProject(
   ),
 
   ### Define local variables (spades_ws3 module parameters)
-  shp.path = "gis/shp",    # path to GIS shape files
-  tif.path = "tif",           # path to tifs within the input directory
+  shp.path = "gis/shp",    # path to GIS shape files, relative to the input directory
+  tif.path = "tif",           # path to tifs, relative to the input directory
   target.masks = list(c('? ? ? ?')), # do not modify. AL: I don't know what this is
 
   # The below are modifiable in expr.R. Defaults are defined in defaultDots below:
@@ -142,7 +142,7 @@ inSim <- SpaDES.project::setupProject(
                       scheduler.mode = scheduler.mode,
                       target.scalefactors = target.scalefactors,
                       workers=n_ws3_workers,
-                      saveFM = TRUE,                    # Enable saving
+                      saveFM = TRUE,                    # Enable saving of fm objects
                       saveFM.path = "fm_checkpoints"),
     spades_ws3_diag_FRESH = list(.plotInitialTime = 0,
                                  .plotInterval = 1),
@@ -153,8 +153,9 @@ inSim <- SpaDES.project::setupProject(
   ),
   packages = c("gert", "PredictiveEcology/LandR@development",
                "reticulate", "httr", "RCurl", "XML","bcdata",
-               "PredictiveEcology/reproducible@AI (>= 2.1.2.9070)",
-               "PredictiveEcology/SpaDES.core@box (>= 2.1.8.9013)"
+               "PredictiveEcology/SpaDES.core@development (>= 3.0.3.9003)",
+               "PredictiveEcology/reproducible (>= 3.0.0)"
+               #"PredictiveEcology/SpaDES.core@box (>= 2.1.8.9013)"
   ),
   sppEquiv = {
     spp <- LandR::sppEquivalencies_CA[LandR %in% c("Pinu_con", "Pinu_ban",
@@ -189,7 +190,7 @@ if (any(grepl("scfm", inSim$modules, ignore.case = TRUE))) {
 #readySim <- do.call(SpaDES.core::simInit, inSim)
 #sim<-spades(readySim)
 
-sim <- do.call(SpaDES.core::simInitAndSpades, inSim)
+simout <- do.call(SpaDES.core::simInitAndSpades, inSim)
 
 
 
