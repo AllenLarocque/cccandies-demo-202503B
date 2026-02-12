@@ -22,3 +22,6 @@
 [submodule "modules/spades_ws3_landrAge"]
 	path = modules/spades_ws3_landrAge
 	url = https://github.com/AllenLarocque/spades_ws3_landrAge
+[submodule "modules/scfm"]
+	path = modules/scfm
+	url = https://github.com/AllenLarocque/scfm
