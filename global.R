@@ -21,6 +21,7 @@ if (!require("SpaDES.project")){
 
 Require::setLinuxBinaryRepo()  # Use pre-compiled binary packages for Linux instead of compiling from source. This should be faster, be more stable, and work better without root access.
 
+pkgload::load_all("~/projects/scfmutils")
 ################################################################################
 
 ## TEMP: For single run testing, use this:
@@ -38,7 +39,7 @@ times = list(start = 0, end = 200)
 .rep = "1_optimize"
 .cores = c("sbw")
 n_ws3_workers=10L
-fireMultiplier = 1.0
+fireMultiplier = 1.5
 
 
 modules = c(
@@ -89,7 +90,7 @@ simin <- SpaDES.project::setupProject(
   .rep=.rep,                                  # Number of replicates. Not currently implemented
   .cores=.cores,                              # Which computer core to use. Not currently implemented
   modules=modules,                            # Which modules to include?
-  fireMultiplier = fireMultiplier,            # SCFM 'fire multiplier'. Make more stuff burn or less. CURRENTLY BROKEN
+  fireMultiplier = fireMultiplier,            # SCFM 'fire multiplier'. Scale fire up (>1) or down (<1) relative to empirical burn rate.
   n_ws3_workers=n_ws3_workers,                # The number of workers for WS3. Pass as an integer
 
   # Defaults
@@ -155,8 +156,8 @@ simin <- SpaDES.project::setupProject(
                "reticulate", "httr", "RCurl", "XML","bcdata",
                "PredictiveEcology/SpaDES.core@development (>= 3.0.3.9003)",
                "PredictiveEcology/reproducible (>= 3.0.0)"
-               #"PredictiveEcology/SpaDES.core@box (>= 2.1.8.9013)"
-  ),
+               #,"AllenLarocque/scfmutils@cursor"
+               ),
   sppEquiv = {
     spp <- LandR::sppEquivalencies_CA[LandR %in% c("Pinu_con", "Pinu_ban",
                                                    "Pice_gla", "Pice_mar",
@@ -169,28 +170,28 @@ simin <- SpaDES.project::setupProject(
 
 ### Modifications required by scfm:
 # (Only run if a module with 'scfm' in the name is in the module list)
-if (any(grepl("scfm", inSim$modules, ignore.case = TRUE))) {
+if (any(grepl("scfm", simin$modules, ignore.case = TRUE))) {
   # Manually add scfm modules to modulePath and module list:
-  inSim$paths$modulePath <- c("modules", "modules/scfm/modules")
-  inSim$modules <- setdiff(c(inSim$modules,
+  simin$paths$modulePath <- c("modules", "modules/scfm/modules")
+  simin$modules <- setdiff(c(simin$modules,
                              c("scfmDataPrep","scfmDiagnostics", "scfmIgnition", "scfmEscape", "scfmSpread")),
                            "scfm")
 
   # Add scfm params manually since setupProject strips them out
-  inSim$params$scfmDataPrep$targetN <- 1000 #quick calibration while testing (at least 2K for real)
-  inSim$params$scfmDataPrep$.useParallelFireRegimePolys = TRUE
+  simin$params$scfmDataPrep$targetN <- 1000 #quick calibration while testing (at least 2K for real)
+  simin$params$scfmDataPrep$.useParallelFireRegimePolys = TRUE
 }
 
 ###
 
 # Run init:
-#outInit<-do.call(SpaDES.core::simInit,inSim)
+#outInit<-do.call(SpaDES.core::simInit,simin)
 
 # debug(SpaDES.core:::.runModuleInputObjects)
-#readySim <- do.call(SpaDES.core::simInit, inSim)
+#readySim <- do.call(SpaDES.core::simInit, simin)
 #sim<-spades(readySim)
 
-simout <- do.call(SpaDES.core::simInitAndSpades, inSim)
+simout <- do.call(SpaDES.core::simInitAndSpades, simin)
 
 
 
