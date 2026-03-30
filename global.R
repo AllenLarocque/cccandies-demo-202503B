@@ -21,7 +21,8 @@ if (!require("SpaDES.project")){
 
 Require::setLinuxBinaryRepo()  # Use pre-compiled binary packages for Linux instead of compiling from source. This should be faster, be more stable, and work better without root access.
 
-pkgload::load_all("~/projects/scfmutils")
+pkgload::load_all("~/projects/scfmutils")  # Load scfm utils locally for now
+
 ################################################################################
 
 ## TEMP: For single run testing, use this:
@@ -40,7 +41,6 @@ times = list(start = 0, end = 200)
 .cores = c("sbw")
 n_ws3_workers=10L
 fireMultiplier = 1.5
-
 
 modules = c(
   "AllenLarocque/spades_ws3_dataInit@dev",
@@ -148,9 +148,9 @@ simin <- SpaDES.project::setupProject(
     spades_ws3_diag_FRESH = list(.plotInitialTime = 0,
                                  .plotInterval = 1),
     scfmDataPrep = list(.useParallelFireRegimePolys = TRUE, #use Greg's cores
-                        targetN = 1000), #unserious fire param during testing
-    fireHarvestPlots = list(resInHA = NULL), # NULL means calculate from rasterToMatch
-    scfmRegime = list(fireMultiplier = fireMultiplier)  # Multiplier to scale fire at parameter estimation (1.0 = normal, 2.0 = double, 0.0 = no fire). Scales targetBurnRate relative to observed data.
+                        targetN = 1000, #unserious fire param during testing
+                        fireMultiplier = fireMultiplier),  # Multiplier to scale fire at parameter estimation (1.0 = normal, 2.0 = double, 0.0 = no fire). Scales targetBurnRate relative to observed data.
+    fireHarvestPlots = list(resInHA = NULL) # NULL means calculate from rasterToMatch
   ),
   packages = c("gert", "PredictiveEcology/LandR@development",
                "reticulate", "httr", "RCurl", "XML","bcdata",
@@ -180,6 +180,7 @@ if (any(grepl("scfm", simin$modules, ignore.case = TRUE))) {
   # Add scfm params manually since setupProject strips them out
   simin$params$scfmDataPrep$targetN <- 1000 #quick calibration while testing (at least 2K for real)
   simin$params$scfmDataPrep$.useParallelFireRegimePolys = TRUE
+  simin$params$scfmDataPrep$fireMultiplier <- fireMultiplier
 }
 
 ###
