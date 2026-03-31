@@ -55,3 +55,26 @@ appendMissedHarvestRow <- function(dt, year, plannedHarvestArea_ha,
   )
   data.table::rbindlist(list(dt, new_row), use.names = TRUE, fill = TRUE)
 }
+
+# ---------------------------------------------------------------------------
+# Burn biomass
+# ---------------------------------------------------------------------------
+
+#' Compute total biomass of cohorts on pixels that burned this year.
+#'
+#' @param rstCurrentBurn SpatRaster. Values > 0 indicate burned pixels.
+#' @param pixelGroupMap  SpatRaster. Integer pixel group IDs.
+#' @param cohortData     data.table with columns: pixelGroup (integer), B (numeric, g/m2).
+#' @return Numeric scalar: sum of B across all cohorts in all burned pixel groups.
+computeBurnBiomass <- function(rstCurrentBurn, pixelGroupMap, cohortData) {
+  burnedIdx <- which(terra::values(rstCurrentBurn) > 0)
+  if (length(burnedIdx) == 0) return(0)
+
+  pgVals <- terra::values(pixelGroupMap)[burnedIdx]
+  burnedPGs <- data.table::data.table(pixelGroup = pgVals)
+  burnedPGs <- burnedPGs[!is.na(pixelGroup)]
+  if (nrow(burnedPGs) == 0) return(0)
+
+  joined <- cohortData[burnedPGs, on = "pixelGroup", allow.cartesian = TRUE, nomatch = 0]
+  sum(joined$B, na.rm = TRUE)
+}
