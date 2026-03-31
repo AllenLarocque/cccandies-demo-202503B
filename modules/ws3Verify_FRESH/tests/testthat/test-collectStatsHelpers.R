@@ -151,3 +151,12 @@ test_that("computeMissedHarvest mosaics multiple basenames", {
   expect_gte(result$planned, 1)
   expect_equal(result$missed, 0)
 })
+
+test_that("queryFmStats returns numeric harvestVol and growingStock (integration, skipped)", {
+  skip("Integration test: requires Python + ws3. Run manually with a live sim.")
+  # Manual verification: after running global.R, call:
+  #   reticulate::py_run_string("import ws3")
+  #   stats <- queryFmStats(fm = py$fm, period = 1L)
+  #   stopifnot(is.numeric(stats$harvestVol), is.numeric(stats$growingStock))
+  #   cat("harvestVol:", stats$harvestVol, "growingStock:", stats$growingStock, "\n")
+})

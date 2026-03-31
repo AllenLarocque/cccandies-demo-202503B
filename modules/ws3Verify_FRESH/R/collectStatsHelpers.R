@@ -121,3 +121,25 @@ computeMissedHarvest <- function(basenames, tifDir, year, rstCurrentBurn, resInH
     missed  = missedPixels  * resInHA
   )
 }
+
+# ---------------------------------------------------------------------------
+# ForestModel queries (reticulate)
+# ---------------------------------------------------------------------------
+
+#' Query harvested volume and growing stock from a ws3 ForestModel for a given period.
+#'
+#' @param fm     A reticulate Python proxy for a ws3 ForestModel instance.
+#'               Requires methods: compile_product(period, expr, acode) and
+#'               inventory(period, yname).
+#' @param period Integer. ws3 planning period index (1-based).
+#'               Compute as: (time(sim) - start(sim)) / planning_period_freq
+#' @return Named list: harvestVol (m3, numeric), growingStock (m3, numeric).
+queryFmStats <- function(fm, period) {
+  period <- as.integer(period)
+  harvestVol   <- fm$compile_product(period, 'totvol', acode = 'harvest')
+  growingStock <- fm$inventory(period, 'totvol')
+  list(
+    harvestVol   = as.numeric(harvestVol),
+    growingStock = as.numeric(growingStock)
+  )
+}
