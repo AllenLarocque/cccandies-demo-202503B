@@ -18,3 +18,4 @@ modules/scfmDiagnostics
 modules/scfmIgnition
 modules/scfmEscape
 modules/scfmSpread
+modules/ws3Verify_FRESH/tests/testthat/Rplots.pdf
