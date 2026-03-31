@@ -54,3 +54,37 @@ test_that("plotMissedHarvest returns a ggplot with two fill levels", {
   expect_s3_class(p, "ggplot")
   expect_equal(nlevels(p$data$outcome), 2)
 })
+
+library(terra)
+
+# Minimal SpatRaster for map tests
+makeRast <- function(vals = 1:4) terra::rast(nrows = 2, ncols = 2, vals = vals)
+
+test_that("mapAge executes without error and accepts a title", {
+  r <- makeRast()
+  expect_no_error(mapAge(r, "Test age map"))
+})
+
+test_that("mapCumulativeBurn executes without error", {
+  r <- makeRast(c(0, 1, 2, 0))
+  expect_no_error(mapCumulativeBurn(r))
+})
+
+test_that("mapCumulativeHarvest executes without error", {
+  r <- makeRast(c(0, 0, 1, 2))
+  expect_no_error(mapCumulativeHarvest(r))
+})
+
+test_that("mapStudyArea executes without error given a SpatRaster", {
+  landscape <- c(makeRast(c(41, 41, 40, 40)))
+  names(landscape) <- "fmuid"
+  expect_no_error(mapStudyArea(landscape))
+})
+
+test_that("saveMap writes a png file when type is png", {
+  tmp <- tempfile(fileext = "")
+  r   <- makeRast()
+  saveMap(fn = function() terra::plot(r), path = tmp, types = "png")
+  expect_true(file.exists(paste0(tmp, ".png")))
+  unlink(paste0(tmp, ".png"))
+})
