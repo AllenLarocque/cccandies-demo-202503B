@@ -111,6 +111,9 @@ computeMissedHarvest <- function(basenames, tifDir, year, rstCurrentBurn, resInH
     plannedRst <- do.call(terra::mosaic, rasts)
   }
   terra::values(plannedRst)[is.nan(terra::values(plannedRst))] <- NA
+  if (!terra::compareGeom(plannedRst, rstCurrentBurn, stopOnError = FALSE)) {
+    plannedRst <- terra::resample(plannedRst, rstCurrentBurn, method = "near")
+  }
 
   plannedPixels <- sum(terra::values(plannedRst) == 1, na.rm = TRUE)
   missedPixels  <- sum(terra::values(plannedRst) == 1 &

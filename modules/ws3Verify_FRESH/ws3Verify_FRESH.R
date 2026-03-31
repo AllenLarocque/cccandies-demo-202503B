@@ -12,7 +12,7 @@ defineModule(sim, list(
   documentation = list(),
   loadOrder = list(after = c("spades_ws3", "spades_ws3_landrAge", "scfmSpread")),
   reqdPkgs = list(
-    "data.table", "ggplot2", "terra", "reticulate",
+    "data.table", "ggplot2", "terra", "reticulate", "geodata",
     "PredictiveEcology/SpaDES.core@development (>= 3.0.3.9003)"
   ),
   parameters = bindrows(
@@ -110,8 +110,8 @@ doEvent.ws3Verify_FRESH <- function(sim, eventTime, eventType) {
 # ---------------------------------------------------------------------------
 
 Init <- function(sim) {
-  source(file.path(moduleSourceDir(sim), "R", "collectStatsHelpers.R"), local = TRUE)
-  source(file.path(moduleSourceDir(sim), "R", "makePlotsHelpers.R"), local = TRUE)
+  source(file.path(moduleSourceDir(sim), "R", "collectStatsHelpers.R"))
+  source(file.path(moduleSourceDir(sim), "R", "makePlotsHelpers.R"))
 
   # Resolve resInHA
   if (is.na(P(sim)$resInHA)) {
@@ -135,7 +135,7 @@ Init <- function(sim) {
 }
 
 CollectStats <- function(sim) {
-  source(file.path(moduleSourceDir(sim), "R", "collectStatsHelpers.R"), local = TRUE)
+  source(file.path(moduleSourceDir(sim), "R", "collectStatsHelpers.R"))
 
   t         <- time(sim)
   resInHA   <- sim$.resInHA
@@ -144,7 +144,7 @@ CollectStats <- function(sim) {
 
   # 1. Area metrics
   harvestRow     <- tail(sim$harvestStats, 1)
-  harvestArea_ha <- harvestRow$ws3_harvestArea_pixels * resInHA
+  harvestArea_ha <- if (nrow(harvestRow) > 0) harvestRow$ws3_harvestArea_pixels * resInHA else 0
   burnArea_ha    <- sum(sim$burnSummary[year == t, areaBurned], na.rm = TRUE)
 
   # 2. Burned biomass
@@ -201,7 +201,7 @@ CollectStats <- function(sim) {
 }
 
 MakePlots <- function(sim) {
-  source(file.path(moduleSourceDir(sim), "R", "makePlotsHelpers.R"), local = TRUE)
+  source(file.path(moduleSourceDir(sim), "R", "makePlotsHelpers.R"))
 
   outPath   <- outputPath(sim)
   plotTypes <- P(sim)$.plots

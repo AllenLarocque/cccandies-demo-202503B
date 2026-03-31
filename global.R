@@ -153,8 +153,8 @@ simin <- SpaDES.project::setupProject(
                         fireMultiplier = fireMultiplier),  # Multiplier to scale fire at parameter estimation (1.0 = normal, 2.0 = double, 0.0 = no fire). Scales targetBurnRate relative to observed data.
     fireHarvestPlots = list(resInHA = NULL), # NULL means calculate from rasterToMatch
     ws3Verify_FRESH = list(
-      .plots   = "png",
-      resInHA  = NULL      # NULL = auto-calculate from rasterToMatch
+      .plots  = "png",
+      resInHA = NA         # NA = auto-calculate from rasterToMatch
     )
   ),
   packages = c("gert", "PredictiveEcology/LandR@development",
