@@ -45,7 +45,7 @@ defineModule(sim, list(
                  "Pixel group IDs. From spades_ws3_landrAge.",
                  sourceURL = NA),
     expectsInput("cohortData", "data.table",
-                 "Cohort biomass data. Has columns: pixelGroup (integer), B (numeric, g/m2).",
+                 "Cohort biomass data. Has columns: pixelGroup (integer), B (numeric, g/m2), and others.",
                  sourceURL = NA),
     expectsInput("landscape", "SpatRaster",
                  "Landscape raster stack with layers: fmuid, thlb, au, blockid, age.",
