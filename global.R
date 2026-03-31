@@ -46,7 +46,8 @@ modules = c(
   "AllenLarocque/spades_ws3_dataInit@dev",
   "AllenLarocque/spades_ws3@dev",
   "AllenLarocque/spades_ws3_landrAge@PE",
-  "AllenLarocque/scfm@development"                 # TEMP: this scfm branch contains 'fire multiplier' features
+  "AllenLarocque/scfm@development",                # TEMP: this scfm branch contains 'fire multiplier' features
+  "ws3Verify_FRESH"                               # Local module for verification plots
   #"AllenLarocque/spades_ws3_diag_FRESH@main",        # This module contains diagnostic plots for the WS3_FRESH module
   #"AllenLarocque/spades_ws3_scfm_diag_FRESH@main"    # This module contains diagnostic plots for the WS3_FRESH_scfm module
   #"PredictiveEcology/Biomass_borealDataPrep@development",
@@ -150,7 +151,11 @@ simin <- SpaDES.project::setupProject(
     scfmDataPrep = list(.useParallelFireRegimePolys = TRUE, #use Greg's cores
                         targetN = 1000, #unserious fire param during testing
                         fireMultiplier = fireMultiplier),  # Multiplier to scale fire at parameter estimation (1.0 = normal, 2.0 = double, 0.0 = no fire). Scales targetBurnRate relative to observed data.
-    fireHarvestPlots = list(resInHA = NULL) # NULL means calculate from rasterToMatch
+    fireHarvestPlots = list(resInHA = NULL), # NULL means calculate from rasterToMatch
+    ws3Verify_FRESH = list(
+      .plots   = "png",
+      resInHA  = NULL      # NULL = auto-calculate from rasterToMatch
+    )
   ),
   packages = c("gert", "PredictiveEcology/LandR@development",
                "reticulate", "httr", "RCurl", "XML","bcdata",
