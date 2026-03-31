@@ -90,3 +90,64 @@ test_that("computeBurnBiomass ignores NA pixels in pixelGroupMap", {
   result <- computeBurnBiomass(rstCurrentBurn, pixelGroupMap, cohortData)
   expect_equal(result, 100)  # only pixel group 1 (not NA pixel group)
 })
+
+test_that("computeMissedHarvest returns NA when no tif exists for that year", {
+  result <- computeMissedHarvest(
+    basenames      = "tsa_nonexistent",
+    tifDir         = tempdir(),
+    year           = 9999,
+    rstCurrentBurn = terra::rast(nrows = 2, ncols = 2, vals = 0),
+    resInHA        = 1
+  )
+  expect_true(is.na(result$planned))
+  expect_true(is.na(result$missed))
+})
+
+test_that("computeMissedHarvest counts planned pixels and overlap with burn", {
+  tmp <- tempdir()
+  bn  <- "testTSA_missed"
+  dir.create(file.path(tmp, bn), showWarnings = FALSE)
+
+  # Write planned harvest raster: pixels 1 and 2 planned (out of 4)
+  plannedVals <- c(1, 1, 0, 0)
+  plannedRst  <- terra::rast(nrows = 2, ncols = 2, vals = plannedVals)
+  terra::writeRaster(plannedRst,
+                     file.path(tmp, bn, "projected_harvest_5.tif"),
+                     overwrite = TRUE)
+
+  # Burn raster: pixel 1 burned
+  burnRst <- terra::rast(nrows = 2, ncols = 2, vals = c(1, 0, 0, 0))
+
+  result <- computeMissedHarvest(
+    basenames      = bn,
+    tifDir         = tmp,
+    year           = 5,
+    rstCurrentBurn = burnRst,
+    resInHA        = 1
+  )
+  expect_equal(result$planned, 2)   # 2 planned pixels × 1 ha/pixel
+  expect_equal(result$missed,  1)   # 1 pixel was both planned and burned
+})
+
+test_that("computeMissedHarvest mosaics multiple basenames", {
+  tmp <- tempdir()
+  for (bn in c("tsaA_missed", "tsaB_missed")) {
+    dir.create(file.path(tmp, bn), showWarnings = FALSE)
+    r <- terra::rast(nrows = 2, ncols = 2, vals = c(1, 0, 0, 0))
+    terra::writeRaster(r, file.path(tmp, bn, "projected_harvest_10.tif"),
+                       overwrite = TRUE)
+  }
+  burnRst <- terra::rast(nrows = 2, ncols = 2, vals = 0)
+
+  result <- computeMissedHarvest(
+    basenames      = c("tsaA_missed", "tsaB_missed"),
+    tifDir         = tmp,
+    year           = 10,
+    rstCurrentBurn = burnRst,
+    resInHA        = 1
+  )
+  # Each basename contributes 1 planned pixel; mosaic merges them
+  # Since both rasters have same extent and pixel 1 = 1, mosaic gives 1 planned pixel
+  expect_gte(result$planned, 1)
+  expect_equal(result$missed, 0)
+})

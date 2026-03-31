@@ -78,3 +78,46 @@ computeBurnBiomass <- function(rstCurrentBurn, pixelGroupMap, cohortData) {
   joined <- cohortData[burnedPGs, on = "pixelGroup", allow.cartesian = TRUE, nomatch = 0]
   sum(joined$B, na.rm = TRUE)
 }
+
+# ---------------------------------------------------------------------------
+# Missed harvest
+# ---------------------------------------------------------------------------
+
+#' Compute planned harvest area and how much of it burned before harvest.
+#'
+#' Reads the projected_harvest_<year>.tif written by the spades_ws3 Python layer
+#' for each basename and compares it to the current-year burn raster.
+#'
+#' @param basenames      Character vector of TSA basenames (e.g. c("tsa40","tsa41")).
+#' @param tifDir         Path to the tif directory (inputPath(sim)/tif.path).
+#'                       Each basename has a subdirectory: tifDir/<basename>/.
+#' @param year           Numeric. Simulation year (used to build file name).
+#' @param rstCurrentBurn SpatRaster. Values > 0 indicate pixels that burned this year.
+#' @param resInHA        Numeric. Pixel area in hectares.
+#' @return Named list: planned (ha), missed (ha). Both NA if no tif found.
+computeMissedHarvest <- function(basenames, tifDir, year, rstCurrentBurn, resInHA) {
+  fname  <- paste0("projected_harvest_", year, ".tif")
+  paths  <- file.path(tifDir, basenames, fname)
+  exists <- file.exists(paths)
+
+  if (!any(exists)) {
+    return(list(planned = NA_real_, missed = NA_real_))
+  }
+
+  rasts <- lapply(paths[exists], terra::rast)
+  if (length(rasts) == 1) {
+    plannedRst <- rasts[[1]]
+  } else {
+    plannedRst <- do.call(terra::mosaic, rasts)
+  }
+  terra::values(plannedRst)[is.nan(terra::values(plannedRst))] <- NA
+
+  plannedPixels <- sum(terra::values(plannedRst) == 1, na.rm = TRUE)
+  missedPixels  <- sum(terra::values(plannedRst) == 1 &
+                         terra::values(rstCurrentBurn) > 0, na.rm = TRUE)
+
+  list(
+    planned = plannedPixels * resInHA,
+    missed  = missedPixels  * resInHA
+  )
+}
