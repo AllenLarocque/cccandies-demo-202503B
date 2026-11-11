@@ -88,3 +88,10 @@ test_that("saveMap writes a png file when type is png", {
   expect_true(file.exists(paste0(tmp, ".png")))
   unlink(paste0(tmp, ".png"))
 })
+
+test_that("mapStudyAreaContext accepts a SpatVector (terra has no vect() method for it) or sf", {
+  sa <- terra::vect(terra::ext(0, 10, 0, 10), crs = "EPSG:4326")
+  grDevices::pdf(NULL); on.exit(grDevices::dev.off())
+  expect_no_error(suppressMessages(mapStudyAreaContext(sa)))
+  expect_no_error(suppressMessages(mapStudyAreaContext(sf::st_as_sf(sa))))
+})

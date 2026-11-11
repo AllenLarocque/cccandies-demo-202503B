@@ -93,16 +93,18 @@ mapStudyArea <- function(landscape) {
 #' Plot study area in country context using geodata world outline.
 #' Falls back gracefully if geodata is unavailable.
 mapStudyAreaContext <- function(studyArea) {
+  # terra has no vect() method for SpatVector, so only convert other classes (e.g. sf)
+  if (!inherits(studyArea, "SpatVector")) studyArea <- terra::vect(studyArea)
   tryCatch({
     world <- geodata::world(path = tempdir())
     terra::plot(world, col = "grey90", border = "grey60",
                 main = "Study area in geographic context")
-    terra::plot(terra::vect(studyArea), col = "firebrick",
+    terra::plot(studyArea, col = "firebrick",
                 alpha = 0.6, add = TRUE)
   }, error = function(e) {
     message("mapStudyAreaContext: geodata unavailable, plotting studyArea only. ",
             conditionMessage(e))
-    terra::plot(terra::vect(studyArea), main = "Study area")
+    terra::plot(studyArea, main = "Study area")
   })
 }
 
