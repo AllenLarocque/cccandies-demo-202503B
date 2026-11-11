@@ -19,9 +19,10 @@ if (!require("SpaDES.project")){
                    dependencies = TRUE)
 }
 
-Require::setLinuxBinaryRepo()  # Use pre-compiled binary packages for Linux instead of compiling from source. This should be faster, be more stable, and work better without root access.
+try(Require::setLinuxBinaryRepo())  # try(): it reads cran.r-project.org/CRAN_mirrors.csv, which may be unreachable; repos then stay as they are. Use pre-compiled binary packages for Linux instead of compiling from source. This should be faster, be more stable, and work better without root access.
 
-pkgload::load_all("~/projects/scfmutils")  # Load scfm utils locally for now
+# scfmutils fork (fireMultiplier) is loaded with pkgload::load_all() after setupProject() below,
+# once its dependencies are installed.
 
 ################################################################################
 
@@ -30,23 +31,26 @@ pkgload::load_all("~/projects/scfmutils")  # Load scfm utils locally for now
 # From here:
 #######
 
-basenames = list("tsa41","tsa40")
-base.year = 2020
-horizon= 20
-period_length=10
-planning_period_freq = 10 # TEMP: Keep the same as period_length for now
-scheduler.mode = "optimize"
-times = list(start = 0, end = 200)
-.rep = "1_optimize"
-.cores = c("sbw")
-n_ws3_workers=10L
-fireMultiplier = 1.5
+# Each value below is only set if it doesn't already exist, so a wrapper script
+# (e.g. global_minimal.R) can set any of them before sourcing this file.
+if (!exists("basenames", inherits = FALSE)) basenames = list("tsa41","tsa40")
+if (!exists("base.year", inherits = FALSE)) base.year = 2020
+if (!exists("horizon", inherits = FALSE)) horizon= 20
+if (!exists("period_length", inherits = FALSE)) period_length=10
+if (!exists("planning_period_freq", inherits = FALSE)) planning_period_freq = 10 # TEMP: Keep the same as period_length for now
+if (!exists("scheduler.mode", inherits = FALSE)) scheduler.mode = "optimize"
+if (!exists("times", inherits = FALSE)) times = list(start = 0, end = 200)
+if (!exists(".rep", inherits = FALSE)) .rep = "1_optimize"
+if (!exists(".cores", inherits = FALSE)) .cores = c("sbw")
+if (!exists("n_ws3_workers", inherits = FALSE)) n_ws3_workers=10L
+if (!exists("fireMultiplier", inherits = FALSE)) fireMultiplier = 1.5
+if (!exists("pythonPath", inherits = FALSE)) pythonPath = NA  # NA: spades_ws3_dataInit installs Python 3.12 itself
 
-modules = c(
-  "AllenLarocque/spades_ws3_dataInit@dev",
+if (!exists("modules", inherits = FALSE)) modules = c(
+  "AllenLarocque/spades_ws3_dataInit@7809a24a53562d3f06b2e6638fd297cb6bed030d", # branch feature/ws3-fresh-container-run (a branch name with "/" can't be used here)
   "AllenLarocque/spades_ws3@dev",
   "AllenLarocque/spades_ws3_landrAge@PE",
-  "AllenLarocque/scfm@development",                # TEMP: this scfm branch contains 'fire multiplier' features
+  "AllenLarocque/scfm@95e2fa6b581bece76b5add716fc18a983d5838c5", # TEMP: the fire multiplier commit b080d74 (on no branch since the fork's development was rewritten) + fix/nfdb-point-url
   "ws3Verify_FRESH"                               # Local module for verification plots
   #"AllenLarocque/spades_ws3_diag_FRESH@main",        # This module contains diagnostic plots for the WS3_FRESH module
   #"AllenLarocque/spades_ws3_scfm_diag_FRESH@main"    # This module contains diagnostic plots for the WS3_FRESH_scfm module
@@ -59,6 +63,10 @@ modules = c(
 #######
 # To here
 
+
+# setupProject(useGit = ...) treats every module as a git repo and stops on local folders,
+# so local (non-GitHub) modules are added after setupProject() below.
+localModules <- modules[!grepl("/", modules)]
 
 simin <- SpaDES.project::setupProject(
   require = c("reticulate",
@@ -90,7 +98,7 @@ simin <- SpaDES.project::setupProject(
   times=times,                                # Used in scfm and LandR. This determines how long the simulation will run
   .rep=.rep,                                  # Number of replicates. Not currently implemented
   .cores=.cores,                              # Which computer core to use. Not currently implemented
-  modules=modules,                            # Which modules to include?
+  modules=setdiff(modules, localModules),     # Which modules to include?
   fireMultiplier = fireMultiplier,            # SCFM 'fire multiplier'. Scale fire up (>1) or down (<1) relative to empirical burn rate.
   n_ws3_workers=n_ws3_workers,                # The number of workers for WS3. Pass as an integer
 
@@ -115,7 +123,9 @@ simin <- SpaDES.project::setupProject(
   ),
   target.scalefactors={                # This is how much to 'scale back' harvest, by proportion. The 'if' logic is here since it must be different formats depending on scheduler.mode selection
     if (scheduler.mode == "optimize") {
-      py_dict(basenames, as.list(rep(1.0, length(basenames))))
+      # A named list, not py_dict(): py_dict() starts Python here, before spades_ws3_dataInit can
+      # select its r-reticulate virtualenv. reticulate converts it to the same dict when passed to Python.
+      setNames(as.list(rep(1.0, length(basenames))), unlist(basenames))
     } else if (scheduler.mode == "areacontrol") {
       NULL
     }
@@ -131,11 +141,12 @@ simin <- SpaDES.project::setupProject(
                     saveFM = TRUE,                      # Enable saving of ws3 forestmodel (fm) objects
                     saveFM.path = "fm_checkpoints"      # path to save fm objects
     ),
-    spades_ws3_dataInit = list(GithubURL="git@github.com:UBC-FRESH/cccandies_demo_input.git",
+    spades_ws3_dataInit = list(GithubURL="https://github.com/UBC-FRESH/cccandies_demo_input.git",
                                .saveInitialTime = 0,
                                .saveInterval = 1,
                                .saveObjects = c("landscape"),
                                .savePath = file.path(paths$outputPath, "landscape"),
+                               pythonPath = pythonPath,         # Python to build the r-reticulate virtualenv from; NA = reticulate::install_python()
                                merge.approach = c("mosaic")),   # What terra function to use for merging landscape rasters? Use terra:mosaic if neighbouring cells blend incorrectly; terra:merge may be faster. Mosaic is default.
     spades_ws3 = list(basenames = basenames,
                       horizon = horizon,
@@ -157,10 +168,10 @@ simin <- SpaDES.project::setupProject(
       resInHA = NA         # NA = auto-calculate from rasterToMatch
     )
   ),
-  packages = c("gert", "PredictiveEcology/LandR@development",
+  packages = c("gert", "pkgload", "PredictiveEcology/LandR@development",
                "reticulate", "httr", "RCurl", "XML","bcdata",
                "PredictiveEcology/SpaDES.core@development (>= 3.0.3.9003)",
-               "PredictiveEcology/reproducible (>= 3.0.0)"
+               "PredictiveEcology/reproducible@development (>= 3.2.1.9075)"  # SpaDES.core@development needs this
                #,"AllenLarocque/scfmutils@cursor"
                ),
   sppEquiv = {
@@ -172,6 +183,12 @@ simin <- SpaDES.project::setupProject(
     spp #change
   }
 )
+
+simin$modules <- c(simin$modules, localModules)
+
+# Load the scfmutils fork (fireMultiplier) over the installed upstream scfmutils.
+# Set SCFMUTILS_PATH to a local checkout of AllenLarocque/scfmutils@feature-fireMultiplier.
+pkgload::load_all(Sys.getenv("SCFMUTILS_PATH", "~/projects/scfmutils"))
 
 ### Modifications required by scfm:
 # (Only run if a module with 'scfm' in the name is in the module list)
