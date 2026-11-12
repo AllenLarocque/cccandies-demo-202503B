@@ -10,14 +10,17 @@ First completed 2026-11-10.
 cd /workspace/cccandies-demo-202503B
 git submodule update --init modules/spades_ws3_dataInit modules/spades_ws3 \
     modules/spades_ws3_landrAge modules/scfm
-# scfmutils fork that the pinned scfm commit was written against (fireMultiplier)
+# scfmutils fork that the pinned scfm commit was written against (fireMultiplier), once.
+# The run used fa89390 (origin/feature-fireMultiplier, version 2.0.9.9004 on 2026-11-10).
+[ -d /workspace/dev/scfmutils ] || \
+    git clone https://github.com/AllenLarocque/scfmutils.git /workspace/dev/scfmutils
 git -C /workspace/dev/scfmutils worktree add --detach \
-    /workspace/dev/scfmutils-feature-fireMultiplier origin/feature-fireMultiplier   # once
+    /workspace/dev/scfmutils-feature-fireMultiplier fa89390
 SCFMUTILS_PATH=/workspace/dev/scfmutils-feature-fireMultiplier Rscript global_minimal.R
 ```
 
-`global_minimal.R` sets the run values and sources `global.R`, which now only sets values that
-don't exist yet. Outputs: `output/minimal_tsa41/` (figures in `figures/`, maps in
+`global_minimal.R` puts the run values in a list `runOverrides`, which `global.R` applies over
+its own values, then sources `global.R`. Outputs: `output/minimal_tsa41/` (figures in `figures/`, maps in
 `figures/maps/`, ws3 models in `fm_checkpoints/`). Expect a final "simList saved in
 SpaDES.core:::savedSimEnv()$.sim" message and exit status 0.
 
@@ -40,9 +43,16 @@ is on `/workspace`. scfm inputs live in `input/<.rep>`, so a new `.rep` download
 
 ## Container specifics
 
-- `cran.r-project.org` is not on the allowlist. `Require::setLinuxBinaryRepo()` reads its
-  mirror list from there; `global.R` wraps that call in `try()`, so repos stay at the image's
-  Posit binary snapshot. Require also uses that host in `archivedOn()` (archived package versions).
+- `cran.r-project.org` was added to the allowlist on 2026-11-12. Before that,
+  `Require::setLinuxBinaryRepo()` failed (it reads the mirror list from there), so `global.R` wraps
+  it in `try()`. It now succeeds and puts Posit's `latest` Linux binaries ahead of the image's
+  dated p3m snapshot, so package versions can differ from the first run (2026-11-10).
+- scfmutils: `global.R` loads the fork with `pkgload::load_all(SCFMUTILS_PATH)` over the installed
+  upstream scfmutils, outside setupProject/Require (this pre-dates the container work). Plain
+  `Rscript global.R` needs a checkout at `~/projects/scfmutils`. The parallel calibration workers
+  load the installed upstream scfmutils, not the fork.
+- The scfm pin `95e2fa6` is only reachable from the fork's `fix/nfdb-point-url` branch (it also
+  keeps `b080d74` alive): don't delete that branch.
 - `reticulate::install_python()` (pyenv source build) fails: `patch` is not in the image. The
   system Python lacks `python3-venv`. `global_minimal.R` passes uv's prebuilt CPython 3.12 to
   `spades_ws3_dataInit` (`pythonPath`).

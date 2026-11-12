@@ -19,7 +19,7 @@ if (!require("SpaDES.project")){
                    dependencies = TRUE)
 }
 
-try(Require::setLinuxBinaryRepo())  # try(): it reads cran.r-project.org/CRAN_mirrors.csv, which may be unreachable; repos then stay as they are. Use pre-compiled binary packages for Linux instead of compiling from source. This should be faster, be more stable, and work better without root access.
+try(Require::setLinuxBinaryRepo())  # try(): it reads cran.r-project.org/CRAN_mirrors.csv; if that host is unreachable, repos stay as they are. Use pre-compiled binary packages for Linux instead of compiling from source. This should be faster, be more stable, and work better without root access.
 
 # scfmutils fork (fireMultiplier) is loaded with pkgload::load_all() after setupProject() below,
 # once its dependencies are installed.
@@ -31,26 +31,24 @@ try(Require::setLinuxBinaryRepo())  # try(): it reads cran.r-project.org/CRAN_mi
 # From here:
 #######
 
-# Each value below is only set if it doesn't already exist, so a wrapper script
-# (e.g. global_minimal.R) can set any of them before sourcing this file.
-if (!exists("basenames", inherits = FALSE)) basenames = list("tsa41","tsa40")
-if (!exists("base.year", inherits = FALSE)) base.year = 2020
-if (!exists("horizon", inherits = FALSE)) horizon= 20
-if (!exists("period_length", inherits = FALSE)) period_length=10
-if (!exists("planning_period_freq", inherits = FALSE)) planning_period_freq = 10 # TEMP: Keep the same as period_length for now
-if (!exists("scheduler.mode", inherits = FALSE)) scheduler.mode = "optimize"
-if (!exists("times", inherits = FALSE)) times = list(start = 0, end = 200)
-if (!exists(".rep", inherits = FALSE)) .rep = "1_optimize"
-if (!exists(".cores", inherits = FALSE)) .cores = c("sbw")
-if (!exists("n_ws3_workers", inherits = FALSE)) n_ws3_workers=10L
-if (!exists("fireMultiplier", inherits = FALSE)) fireMultiplier = 1.5
-if (!exists("pythonPath", inherits = FALSE)) pythonPath = NA  # NA: spades_ws3_dataInit installs Python 3.12 itself
+basenames = list("tsa41","tsa40")
+base.year = 2020
+horizon= 20
+period_length=10
+planning_period_freq = 10 # TEMP: Keep the same as period_length for now
+scheduler.mode = "optimize"
+times = list(start = 0, end = 200)
+.rep = "1_optimize"
+.cores = c("sbw")
+n_ws3_workers=10L
+fireMultiplier = 1.5
+pythonPath = NA  # NA: spades_ws3_dataInit installs Python 3.12 itself
 
-if (!exists("modules", inherits = FALSE)) modules = c(
-  "AllenLarocque/spades_ws3_dataInit@7809a24a53562d3f06b2e6638fd297cb6bed030d", # branch feature/ws3-fresh-container-run (a branch name with "/" can't be used here)
+modules = c(
+  "AllenLarocque/spades_ws3_dataInit@7809a24a53562d3f06b2e6638fd297cb6bed030d", # = feature/ws3-fresh-container-run; pinned by SHA, keep equal to the modules/spades_ws3_dataInit gitlink
   "AllenLarocque/spades_ws3@dev",
   "AllenLarocque/spades_ws3_landrAge@PE",
-  "AllenLarocque/scfm@95e2fa6b581bece76b5add716fc18a983d5838c5", # TEMP: the fire multiplier commit b080d74 (on no branch since the fork's development was rewritten) + fix/nfdb-point-url
+  "AllenLarocque/scfm@95e2fa6b581bece76b5add716fc18a983d5838c5", # = fix/nfdb-point-url: the fire multiplier commit b080d74 (on no other branch since the fork's development was rewritten) + NFDB URL fix. Keep that branch.
   "ws3Verify_FRESH"                               # Local module for verification plots
   #"AllenLarocque/spades_ws3_diag_FRESH@main",        # This module contains diagnostic plots for the WS3_FRESH module
   #"AllenLarocque/spades_ws3_scfm_diag_FRESH@main"    # This module contains diagnostic plots for the WS3_FRESH_scfm module
@@ -59,6 +57,10 @@ if (!exists("modules", inherits = FALSE)) modules = c(
   #"PredictiveEcology/Biomass_regeneration@development",
   #"ianmseddy/LandR_reforestation@master"
 )
+
+# A wrapper script (e.g. global_minimal.R) can override any value above with a named list
+# `runOverrides`; it should remove that list again after sourcing this file.
+if (exists("runOverrides", inherits = FALSE)) list2env(runOverrides, envir = environment())
 
 #######
 # To here
@@ -162,11 +164,8 @@ simin <- SpaDES.project::setupProject(
     scfmDataPrep = list(.useParallelFireRegimePolys = TRUE, #use Greg's cores
                         targetN = 1000, #unserious fire param during testing
                         fireMultiplier = fireMultiplier),  # Multiplier to scale fire at parameter estimation (1.0 = normal, 2.0 = double, 0.0 = no fire). Scales targetBurnRate relative to observed data.
-    fireHarvestPlots = list(resInHA = NULL), # NULL means calculate from rasterToMatch
-    ws3Verify_FRESH = list(
-      .plots  = "png",
-      resInHA = NA         # NA = auto-calculate from rasterToMatch
-    )
+    fireHarvestPlots = list(resInHA = NULL) # NULL means calculate from rasterToMatch
+    # ws3Verify_FRESH params are set after setupProject() (local module, see below)
   ),
   packages = c("gert", "pkgload", "PredictiveEcology/LandR@development",
                "reticulate", "httr", "RCurl", "XML","bcdata",
@@ -185,6 +184,11 @@ simin <- SpaDES.project::setupProject(
 )
 
 simin$modules <- c(simin$modules, localModules)
+# setupProject() drops params of modules it was not given, so set the local module's here.
+simin$params$ws3Verify_FRESH <- list(
+  .plots  = "png",
+  resInHA = NA         # NA = auto-calculate from rasterToMatch
+)
 
 # Load the scfmutils fork (fireMultiplier) over the installed upstream scfmutils.
 # Set SCFMUTILS_PATH to a local checkout of AllenLarocque/scfmutils@feature-fireMultiplier.

@@ -4,7 +4,7 @@
 ## Run from the repo root:
 ##   SCFMUTILS_PATH=/path/to/scfmutils@feature-fireMultiplier Rscript global_minimal.R
 ##
-## It sets the run values, then sources global.R (which only sets values that don't exist yet).
+## It sets the run values in `runOverrides`, which global.R applies over its own, then sources global.R.
 
 # Fresh container: the site library is read-only and global.R's bootstrap installs reticulate
 # before setupProject() has set up the project library. Put setupProject()'s default project
@@ -17,21 +17,23 @@ if (!file.exists(".Rprofile")) {
   .libPaths(c(projLib, .libPaths()))
 }
 
-basenames            <- list("tsa41")
-base.year            <- 2020
-horizon              <- 10      # spadesws3_params.py forces horizon = 10 anyway
-period_length        <- 10
-planning_period_freq <- 10
-scheduler.mode       <- "optimize"
-times                <- list(start = 0, end = 10)  # plans at years 0 and 10
-.rep                 <- "minimal_tsa41"
-n_ws3_workers        <- 1L
-fireMultiplier       <- 1.5
+runOverrides <- list(
+  basenames            = list("tsa41"),
+  base.year            = 2020,
+  horizon              = 10,      # spadesws3_params.py forces horizon = 10 anyway
+  period_length        = 10,
+  planning_period_freq = 10,
+  scheduler.mode       = "optimize",
+  times                = list(start = 0, end = 10),  # plans at years 0 and 10
+  .rep                 = "minimal_tsa41",
+  n_ws3_workers        = 1L,
+  fireMultiplier       = 1.5
+)
 
 # reticulate::install_python() builds Python from source with pyenv, which needs `patch` (not in
 # this image), and the system Python lacks venv (python3-venv). Use uv's prebuilt CPython 3.12
 # instead (the same one reticulate itself downloads).
 system2("uv", c("python", "install", "3.12"))
-pythonPath <- system2("uv", c("python", "find", "--managed-python", "3.12"), stdout = TRUE)
+runOverrides$pythonPath <- system2("uv", c("python", "find", "--managed-python", "3.12"), stdout = TRUE)
 
-source("global.R")
+tryCatch(source("global.R"), finally = rm(runOverrides, envir = globalenv()))
