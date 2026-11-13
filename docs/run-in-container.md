@@ -10,13 +10,7 @@ First completed 2026-11-10.
 cd /workspace/cccandies-demo-202503B
 git submodule update --init modules/spades_ws3_dataInit modules/spades_ws3 \
     modules/spades_ws3_landrAge modules/scfm
-# scfmutils fork that the pinned scfm commit was written against (fireMultiplier), once.
-# The run used fa89390 (origin/feature-fireMultiplier, version 2.0.9.9004 on 2026-11-10).
-[ -d /workspace/dev/scfmutils ] || \
-    git clone https://github.com/AllenLarocque/scfmutils.git /workspace/dev/scfmutils
-git -C /workspace/dev/scfmutils worktree add --detach \
-    /workspace/dev/scfmutils-feature-fireMultiplier fa89390
-SCFMUTILS_PATH=/workspace/dev/scfmutils-feature-fireMultiplier Rscript global_minimal.R
+Rscript global_minimal.R
 ```
 
 `global_minimal.R` puts the run values in a list `runOverrides`, which `global.R` applies over
@@ -32,7 +26,7 @@ SpaDES.core:::savedSimEnv()$.sim" message and exit status 0.
 | Python: uv CPython 3.12 + `r-reticulate` venv (ws3, datalad, git-annex, …) | ~2.5 min | ~20 s (`py_install` re-check) |
 | datalad dataset `cccandies_demo_input` (all 29 annexed files, ~4 GB) | ~23 min | seconds |
 | scfm inputs: 6 NTEMS land-cover rasters + FAO forest (~1.4 GB each), NFDB, ecodistricts | ~95 min | ~1 min (cached) |
-| scfm spread calibration (4 polygons, 4 threads) | ~9 min | cached |
+| scfm spread calibration (4 polygons, 4 threads) | ~9–12 min | cached (redone when scfm/scfmutils change) |
 | 11 simulated years incl. two ws3 solves + SDA, plots | ~1.5 min | ~1.5 min |
 | **Total** | **~2.3 h** | **~2.5 min** |
 
@@ -47,12 +41,17 @@ is on `/workspace`. scfm inputs live in `input/<.rep>`, so a new `.rep` download
   `Require::setLinuxBinaryRepo()` failed (it reads the mirror list from there), so `global.R` wraps
   it in `try()`. It now succeeds and puts Posit's `latest` Linux binaries ahead of the image's
   dated p3m snapshot, so package versions can differ from the first run (2026-11-10).
-- scfmutils: `global.R` loads the fork with `pkgload::load_all(SCFMUTILS_PATH)` over the installed
-  upstream scfmutils, outside setupProject/Require (this pre-dates the container work). Plain
-  `Rscript global.R` needs a checkout at `~/projects/scfmutils`. The parallel calibration workers
-  load the installed upstream scfmutils, not the fork.
-- The scfm pin `95e2fa6` is only reachable from the fork's `fix/nfdb-point-url` branch (it also
-  keeps `b080d74` alive): don't delete that branch.
+  On 2026-11-12 this updated RcppParallel 5.1 → 6.2 (new TBB), which broke the installed binaries
+  of `qs2` and `stringfish` ("undefined symbol ... tbb"). Fixed with
+  `Require::Install(c("qs2", "stringfish"), install = "force")` (one at a time if pak keeps one),
+  then a fresh R session. Check other projects' libraries the same way.
+- Our versions of scfm and scfmutils, until the PredictiveEcology PRs are merged:
+  scfm `AllenLarocque/scfm@feature/fireMultiplier` (pinned `9213cb4`, = the `modules/scfm` gitlink);
+  scfmutils `AllenLarocque/scfmutils@feature/ws3-fresh-integration` (pinned `3521c8e`; PRs #18 +
+  #17 merged), installed by setupProject. The scfm modules' `reqdPkgs` name
+  `PredictiveEcology/scfmutils@development (>= 2.0.9.9012)`, which that branch can't satisfy yet
+  (Require warns); the installed fork satisfies the version. If setupProject stops after
+  "Please restart R", rerun it.
 - `reticulate::install_python()` (pyenv source build) fails: `patch` is not in the image. The
   system Python lacks `python3-venv`. `global_minimal.R` passes uv's prebuilt CPython 3.12 to
   `spades_ws3_dataInit` (`pythonPath`).
