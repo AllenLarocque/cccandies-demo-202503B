@@ -19,9 +19,8 @@ if (!require("SpaDES.project")){
                    dependencies = TRUE)
 }
 
-Require::setLinuxBinaryRepo()  # Use pre-compiled binary packages for Linux instead of compiling from source. This should be faster, be more stable, and work better without root access.
+try(Require::setLinuxBinaryRepo())  # try(): it reads cran.r-project.org/CRAN_mirrors.csv; if that host is unreachable, repos stay as they are. Use pre-compiled binary packages for Linux instead of compiling from source. This should be faster, be more stable, and work better without root access.
 
-pkgload::load_all("~/projects/scfmutils")  # Load scfm utils locally for now
 
 ################################################################################
 
@@ -41,12 +40,13 @@ times = list(start = 0, end = 200)
 .cores = c("sbw")
 n_ws3_workers=10L
 fireMultiplier = 1.5
+pythonPath = NA  # NA: spades_ws3_dataInit installs Python 3.12 itself
 
 modules = c(
-  "AllenLarocque/spades_ws3_dataInit@dev",
+  "AllenLarocque/spades_ws3_dataInit@7809a24a53562d3f06b2e6638fd297cb6bed030d", # = feature/ws3-fresh-container-run; pinned by SHA, keep equal to the modules/spades_ws3_dataInit gitlink
   "AllenLarocque/spades_ws3@dev",
   "AllenLarocque/spades_ws3_landrAge@PE",
-  "AllenLarocque/scfm@development",                # TEMP: this scfm branch contains 'fire multiplier' features
+  "AllenLarocque/scfm@9213cb43a4a0a79d7874a8e0dab568ee5c4110b3", # = feature/fireMultiplier (on development); keep equal to the modules/scfm gitlink
   "ws3Verify_FRESH"                               # Local module for verification plots
   #"AllenLarocque/spades_ws3_diag_FRESH@main",        # This module contains diagnostic plots for the WS3_FRESH module
   #"AllenLarocque/spades_ws3_scfm_diag_FRESH@main"    # This module contains diagnostic plots for the WS3_FRESH_scfm module
@@ -56,13 +56,21 @@ modules = c(
   #"ianmseddy/LandR_reforestation@master"
 )
 
+# A wrapper script (e.g. global_minimal.R) can override any value above with a named list
+# `runOverrides`; it should remove that list again after sourcing this file.
+if (exists("runOverrides", inherits = FALSE)) list2env(runOverrides, envir = environment())
+
 #######
 # To here
 
 
+# setupProject(useGit = ...) treats every module as a git repo and stops on local folders,
+# so local (non-GitHub) modules are added after setupProject() below.
+localModules <- modules[!grepl("/", modules)]
+
 simin <- SpaDES.project::setupProject(
   require = c("reticulate",
-              "PredictiveEcology/scfmutils@development (>= 2.0.9.9003)",
+              "AllenLarocque/scfmutils@3521c8e945a7f6b9f3a3482d6fbfbb0b592e469d (>= 2.0.9.9012)", # = feature/ws3-fresh-integration: PE PRs #18 (fireMultiplier) + #17 (NULL targets), until merged upstream
               "terra"),
 
   # Paths:
@@ -90,7 +98,7 @@ simin <- SpaDES.project::setupProject(
   times=times,                                # Used in scfm and LandR. This determines how long the simulation will run
   .rep=.rep,                                  # Number of replicates. Not currently implemented
   .cores=.cores,                              # Which computer core to use. Not currently implemented
-  modules=modules,                            # Which modules to include?
+  modules=setdiff(modules, localModules),     # Which modules to include?
   fireMultiplier = fireMultiplier,            # SCFM 'fire multiplier'. Scale fire up (>1) or down (<1) relative to empirical burn rate.
   n_ws3_workers=n_ws3_workers,                # The number of workers for WS3. Pass as an integer
 
@@ -115,7 +123,9 @@ simin <- SpaDES.project::setupProject(
   ),
   target.scalefactors={                # This is how much to 'scale back' harvest, by proportion. The 'if' logic is here since it must be different formats depending on scheduler.mode selection
     if (scheduler.mode == "optimize") {
-      py_dict(basenames, as.list(rep(1.0, length(basenames))))
+      # A named list, not py_dict(): py_dict() starts Python here, before spades_ws3_dataInit can
+      # select its r-reticulate virtualenv. reticulate converts it to the same dict when passed to Python.
+      setNames(as.list(rep(1.0, length(basenames))), unlist(basenames))
     } else if (scheduler.mode == "areacontrol") {
       NULL
     }
@@ -131,11 +141,12 @@ simin <- SpaDES.project::setupProject(
                     saveFM = TRUE,                      # Enable saving of ws3 forestmodel (fm) objects
                     saveFM.path = "fm_checkpoints"      # path to save fm objects
     ),
-    spades_ws3_dataInit = list(GithubURL="git@github.com:UBC-FRESH/cccandies_demo_input.git",
+    spades_ws3_dataInit = list(GithubURL="https://github.com/UBC-FRESH/cccandies_demo_input.git",
                                .saveInitialTime = 0,
                                .saveInterval = 1,
                                .saveObjects = c("landscape"),
                                .savePath = file.path(paths$outputPath, "landscape"),
+                               pythonPath = pythonPath,         # Python to build the r-reticulate virtualenv from; NA = reticulate::install_python()
                                merge.approach = c("mosaic")),   # What terra function to use for merging landscape rasters? Use terra:mosaic if neighbouring cells blend incorrectly; terra:merge may be faster. Mosaic is default.
     spades_ws3 = list(basenames = basenames,
                       horizon = horizon,
@@ -151,16 +162,13 @@ simin <- SpaDES.project::setupProject(
     scfmDataPrep = list(.useParallelFireRegimePolys = TRUE, #use Greg's cores
                         targetN = 1000, #unserious fire param during testing
                         fireMultiplier = fireMultiplier),  # Multiplier to scale fire at parameter estimation (1.0 = normal, 2.0 = double, 0.0 = no fire). Scales targetBurnRate relative to observed data.
-    fireHarvestPlots = list(resInHA = NULL), # NULL means calculate from rasterToMatch
-    ws3Verify_FRESH = list(
-      .plots  = "png",
-      resInHA = NA         # NA = auto-calculate from rasterToMatch
-    )
+    fireHarvestPlots = list(resInHA = NULL) # NULL means calculate from rasterToMatch
+    # ws3Verify_FRESH params are set after setupProject() (local module, see below)
   ),
   packages = c("gert", "PredictiveEcology/LandR@development",
                "reticulate", "httr", "RCurl", "XML","bcdata",
                "PredictiveEcology/SpaDES.core@development (>= 3.0.3.9003)",
-               "PredictiveEcology/reproducible (>= 3.0.0)"
+               "PredictiveEcology/reproducible@development (>= 3.2.1.9075)"  # SpaDES.core@development needs this
                #,"AllenLarocque/scfmutils@cursor"
                ),
   sppEquiv = {
@@ -172,6 +180,14 @@ simin <- SpaDES.project::setupProject(
     spp #change
   }
 )
+
+simin$modules <- c(simin$modules, localModules)
+# setupProject() drops params of modules it was not given, so set the local module's here.
+simin$params$ws3Verify_FRESH <- list(
+  .plots  = "png",
+  resInHA = NA         # NA = auto-calculate from rasterToMatch
+)
+
 
 ### Modifications required by scfm:
 # (Only run if a module with 'scfm' in the name is in the module list)
