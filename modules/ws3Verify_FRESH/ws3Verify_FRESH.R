@@ -80,8 +80,10 @@ doEvent.ws3Verify_FRESH <- function(sim, eventTime, eventType) {
     eventType,
     init = {
       sim <- Init(sim)
+      # eventPriority 8: after scfmSpread "burn" (7.5), so this year's fires are in
+      # burnSummary and rstCurrentBurn when stats are collected.
       sim <- scheduleEvent(sim, time(sim) + 1, "ws3Verify_FRESH", "collectStats",
-                           eventPriority = 6)
+                           eventPriority = 8)
       plotTime <- if (is.na(P(sim)$.plotInitialTime)) end(sim) else P(sim)$.plotInitialTime
       sim <- scheduleEvent(sim, plotTime, "ws3Verify_FRESH", "makePlots")
     },
@@ -89,7 +91,7 @@ doEvent.ws3Verify_FRESH <- function(sim, eventTime, eventType) {
       sim <- CollectStats(sim)
       if (time(sim) < end(sim)) {
         sim <- scheduleEvent(sim, time(sim) + 1, "ws3Verify_FRESH", "collectStats",
-                             eventPriority = 6)
+                             eventPriority = 8)
       }
     },
     makePlots = {
