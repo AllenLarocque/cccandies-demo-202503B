@@ -35,3 +35,9 @@ test_that("collectStats is scheduled after scfmSpread's burn event", {
   expect_true(length(burnPrio) > 0)
   expect_true(all(collectPrio > max(burnPrio)))
 })
+
+test_that("makePlots is scheduled after collectStats, so plots include the last year", {
+  plotPrio <- scheduledPriorities(moduleFile, "makePlots")
+  expect_length(plotPrio, 2)
+  expect_true(all(plotPrio > max(scheduledPriorities(moduleFile, "collectStats"))))
+})

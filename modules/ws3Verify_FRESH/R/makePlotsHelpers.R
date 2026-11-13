@@ -36,11 +36,18 @@ plotGrowingStock <- function(dt) {
                   title = "Growing stock over time")
 }
 
-plotBurnedBiomass <- function(dt) {
-  ggplot2::ggplot(dt, ggplot2::aes(x = year, y = burnedBiomass_gm2)) +
+plotBurnedVolume <- function(dt) {
+  ggplot2::ggplot(dt, ggplot2::aes(x = year, y = burnedVol_m3)) +
     ggplot2::geom_line(colour = "orange", linewidth = 1) +
-    ggplot2::labs(x = "Year", y = "Burned biomass (g/m2)",
-                  title = "Annual burned biomass (proxy for burned volume)")
+    ggplot2::labs(x = "Year", y = "Burned volume (m3)",
+                  title = "Annual merchantable volume burned (ws3 yield curves)")
+}
+
+plotBurnedBiomass <- function(dt) {
+  ggplot2::ggplot(dt, ggplot2::aes(x = year, y = burnedBiomass_t)) +
+    ggplot2::geom_line(colour = "orange", linewidth = 1) +
+    ggplot2::labs(x = "Year", y = "Burned biomass (t)",
+                  title = "Annual burned biomass (LandR cohortData)")
 }
 
 plotMissedHarvest <- function(dt) {
