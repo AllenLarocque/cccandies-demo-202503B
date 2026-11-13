@@ -2,7 +2,7 @@
 ## planning period plus the re-plan at year 10, scfm fire, ws3Verify_FRESH plots.
 ##
 ## Run from the repo root:
-##   SCFMUTILS_PATH=/path/to/scfmutils@feature-fireMultiplier Rscript global_minimal.R
+##   Rscript global_minimal.R
 ##
 ## It sets the run values in `runOverrides`, which global.R applies over its own, then sources global.R.
 

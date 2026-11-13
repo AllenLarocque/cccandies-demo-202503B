@@ -21,8 +21,6 @@ if (!require("SpaDES.project")){
 
 try(Require::setLinuxBinaryRepo())  # try(): it reads cran.r-project.org/CRAN_mirrors.csv; if that host is unreachable, repos stay as they are. Use pre-compiled binary packages for Linux instead of compiling from source. This should be faster, be more stable, and work better without root access.
 
-# scfmutils fork (fireMultiplier) is loaded with pkgload::load_all() after setupProject() below,
-# once its dependencies are installed.
 
 ################################################################################
 
@@ -48,7 +46,7 @@ modules = c(
   "AllenLarocque/spades_ws3_dataInit@7809a24a53562d3f06b2e6638fd297cb6bed030d", # = feature/ws3-fresh-container-run; pinned by SHA, keep equal to the modules/spades_ws3_dataInit gitlink
   "AllenLarocque/spades_ws3@dev",
   "AllenLarocque/spades_ws3_landrAge@PE",
-  "AllenLarocque/scfm@95e2fa6b581bece76b5add716fc18a983d5838c5", # = fix/nfdb-point-url: the fire multiplier commit b080d74 (on no other branch since the fork's development was rewritten) + NFDB URL fix. Keep that branch.
+  "AllenLarocque/scfm@9213cb43a4a0a79d7874a8e0dab568ee5c4110b3", # = feature/fireMultiplier (on development); keep equal to the modules/scfm gitlink
   "ws3Verify_FRESH"                               # Local module for verification plots
   #"AllenLarocque/spades_ws3_diag_FRESH@main",        # This module contains diagnostic plots for the WS3_FRESH module
   #"AllenLarocque/spades_ws3_scfm_diag_FRESH@main"    # This module contains diagnostic plots for the WS3_FRESH_scfm module
@@ -72,7 +70,7 @@ localModules <- modules[!grepl("/", modules)]
 
 simin <- SpaDES.project::setupProject(
   require = c("reticulate",
-              "PredictiveEcology/scfmutils@development (>= 2.0.9.9003)",
+              "AllenLarocque/scfmutils@3521c8e945a7f6b9f3a3482d6fbfbb0b592e469d (>= 2.0.9.9012)", # = feature/ws3-fresh-integration: PE PRs #18 (fireMultiplier) + #17 (NULL targets), until merged upstream
               "terra"),
 
   # Paths:
@@ -167,7 +165,7 @@ simin <- SpaDES.project::setupProject(
     fireHarvestPlots = list(resInHA = NULL) # NULL means calculate from rasterToMatch
     # ws3Verify_FRESH params are set after setupProject() (local module, see below)
   ),
-  packages = c("gert", "pkgload", "PredictiveEcology/LandR@development",
+  packages = c("gert", "PredictiveEcology/LandR@development",
                "reticulate", "httr", "RCurl", "XML","bcdata",
                "PredictiveEcology/SpaDES.core@development (>= 3.0.3.9003)",
                "PredictiveEcology/reproducible@development (>= 3.2.1.9075)"  # SpaDES.core@development needs this
@@ -190,9 +188,6 @@ simin$params$ws3Verify_FRESH <- list(
   resInHA = NA         # NA = auto-calculate from rasterToMatch
 )
 
-# Load the scfmutils fork (fireMultiplier) over the installed upstream scfmutils.
-# Set SCFMUTILS_PATH to a local checkout of AllenLarocque/scfmutils@feature-fireMultiplier.
-pkgload::load_all(Sys.getenv("SCFMUTILS_PATH", "~/projects/scfmutils"))
 
 ### Modifications required by scfm:
 # (Only run if a module with 'scfm' in the name is in the module list)
