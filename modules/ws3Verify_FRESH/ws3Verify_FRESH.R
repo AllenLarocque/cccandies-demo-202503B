@@ -71,8 +71,8 @@ defineModule(sim, list(
     createsOutput("ws3VerifyAnnualDT", "data.table",
                   paste("Annual time series. Columns: year, harvestArea_ha, burnArea_ha,",
                         "burnedVol_m3, burnedBiomass_t (NA if burnedBiomass = FALSE),",
-                        "harvestVol_m3 (planning years only),",
-                        "growingStock_m3 (planning years only).")),
+                        "harvestVol_m3 (planning years only: the decade's harvest in the plan just made),",
+                        "growingStock_m3 (planning years only: standing volume at the start of that plan).")),
     createsOutput("ws3MissedHarvestDT", "data.table",
                   paste("Annual planned vs actual harvest. Columns: year,",
                         "plannedHarvestArea_ha, actualHarvestArea_ha, missedDueToFire_ha.")),
@@ -182,13 +182,12 @@ CollectStats <- function(sim) {
     NA_real_
   }
 
-  # 3. Volume + GS on planning years only
+  # 3. Volume + GS on planning years only (including the start year), from the plan just made
   planFreq        <- params(sim)$.globals$planning_period_freq
   harvestVol_m3   <- NA_real_
   growingStock_m3 <- NA_real_
-  if ((t - start(sim)) %% planFreq == 0 && t > start(sim)) {
-    period          <- as.integer((t - start(sim)) / planFreq)
-    fmStats         <- queryFmStats(fm = sim$fm, period = period)
+  if ((t - start(sim)) %% planFreq == 0) {
+    fmStats         <- queryFmStats(fm = sim$fm)
     harvestVol_m3   <- fmStats$harvestVol
     growingStock_m3 <- fmStats$growingStock
   }

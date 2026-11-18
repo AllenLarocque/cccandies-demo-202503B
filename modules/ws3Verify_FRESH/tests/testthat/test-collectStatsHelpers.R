@@ -209,7 +209,37 @@ test_that("queryFmStats returns numeric harvestVol and growingStock (integration
   skip("Integration test: requires Python + ws3. Run manually with a live sim.")
   # Manual verification: after running global.R, call:
   #   reticulate::py_run_string("import ws3")
-  #   stats <- queryFmStats(fm = py$fm, period = 1L)
+  #   stats <- queryFmStats(fm = py$fm)
   #   stopifnot(is.numeric(stats$harvestVol), is.numeric(stats$growingStock))
   #   cat("harvestVol:", stats$harvestVol, "growingStock:", stats$growingStock, "\n")
+})
+
+test_that("queryFmStats reads the current plan: harvest from period 1, stock from period 0", {
+  # Mock ForestModel that, like ws3, only knows periods 0..horizon of the plan just made
+  horizon <- 10L
+  calls <- list()
+  fm <- list(
+    compile_product = function(period, expr, acode) {
+      calls$harvest <<- period
+      if (period < 1L || period > horizon) stop("KeyError: ", period)
+      c(500, 0, 0, 0, 0, 0, 0, 0, 0, 0)[period]
+    },
+    inventory = function(period, yname) {
+      calls$stock <<- period
+      if (period < 0L || period > horizon) stop("KeyError: ", period)
+      1e6 - 1e4 * period
+    }
+  )
+  stats <- queryFmStats(fm)
+  expect_identical(calls$harvest, 1L)
+  expect_identical(calls$stock, 0L)
+  expect_equal(stats$harvestVol, 500)
+  expect_equal(stats$growingStock, 1e6)
+})
+
+test_that("CollectStats queries the fm without a period counted from the simulation start", {
+  # Regression: period = (time - start) / planFreq walked off the 10-period plan at year 110
+  src <- paste(readLines(test_path("..", "..", "ws3Verify_FRESH.R")), collapse = "\n")
+  expect_false(grepl("queryFmStats\\(fm = sim\\$fm, period", src))
+  expect_match(src, "queryFmStats\\(fm = sim\\$fm\\)")
 })
