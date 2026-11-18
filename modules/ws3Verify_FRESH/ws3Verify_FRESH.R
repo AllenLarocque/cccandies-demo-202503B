@@ -23,7 +23,14 @@ defineModule(sim, list(
     defineParameter(".plotInitialTime", "numeric", NA_real_, NA, NA,
                     "Simulation time for makePlots event. NA = end(sim)."),
     defineParameter(".plotInterval", "numeric", NA_real_, NA, NA,
-                    "Interval between plot events. NA = once only.")
+                    "Interval between plot events. NA = once only."),
+    defineParameter("burnedBiomass", "logical", TRUE, NA, NA,
+                    paste("Compute burned biomass (t) from cohortData and plot it. Needs LandR",
+                          "cohortData; set FALSE when only spades_ws3_landrAge's placeholder",
+                          "cohortData exists (WS3_FRESH), which gives meaningless values.")),
+    defineParameter("yieldPath", "character", NA_character_, NA, NA,
+                    paste("Folder with the ws3 yield tables au_table.csv and",
+                          "curve_points_table.csv, used for burned volume. NA = inputPath(sim)."))
   ),
   inputObjects = bindrows(
     expectsInput("harvestStats", "data.frame",
@@ -63,7 +70,8 @@ defineModule(sim, list(
   outputObjects = bindrows(
     createsOutput("ws3VerifyAnnualDT", "data.table",
                   paste("Annual time series. Columns: year, harvestArea_ha, burnArea_ha,",
-                        "burnedBiomass_gm2, harvestVol_m3 (planning years only),",
+                        "burnedVol_m3, burnedBiomass_t (NA if burnedBiomass = FALSE),",
+                        "harvestVol_m3 (planning years only),",
                         "growingStock_m3 (planning years only).")),
     createsOutput("ws3MissedHarvestDT", "data.table",
                   paste("Annual planned vs actual harvest. Columns: year,",
@@ -80,12 +88,13 @@ doEvent.ws3Verify_FRESH <- function(sim, eventTime, eventType) {
     eventType,
     init = {
       sim <- Init(sim)
-      # eventPriority 8: after scfmSpread "burn" (7.5), so this year's fires are in
+      # From the start year, so fires of the first year are counted. eventPriority 8: after scfmSpread "burn" (7.5), so this year's fires are in
       # burnSummary and rstCurrentBurn when stats are collected.
-      sim <- scheduleEvent(sim, time(sim) + 1, "ws3Verify_FRESH", "collectStats",
+      sim <- scheduleEvent(sim, time(sim), "ws3Verify_FRESH", "collectStats",
                            eventPriority = 8)
       plotTime <- if (is.na(P(sim)$.plotInitialTime)) end(sim) else P(sim)$.plotInitialTime
-      sim <- scheduleEvent(sim, plotTime, "ws3Verify_FRESH", "makePlots")
+      # eventPriority 8.5: after collectStats (8), so the plots include the last year's row
+      sim <- scheduleEvent(sim, plotTime, "ws3Verify_FRESH", "makePlots", eventPriority = 8.5)
     },
     collectStats = {
       sim <- CollectStats(sim)
@@ -98,7 +107,7 @@ doEvent.ws3Verify_FRESH <- function(sim, eventTime, eventType) {
       sim <- MakePlots(sim)
       if (!is.na(P(sim)$.plotInterval)) {
         sim <- scheduleEvent(sim, time(sim) + P(sim)$.plotInterval,
-                             "ws3Verify_FRESH", "makePlots")
+                             "ws3Verify_FRESH", "makePlots", eventPriority = 8.5)
       }
     },
     warning(paste("Undefined event type:", current(sim)[1, "eventType", with = FALSE],
@@ -121,6 +130,11 @@ Init <- function(sim) {
   } else {
     sim$.resInHA <- P(sim)$resInHA
   }
+
+  # ws3 yield curves, for burned volume
+  yieldPath <- if (is.na(P(sim)$yieldPath)) inputPath(sim) else P(sim)$yieldPath
+  mod$yields <- loadYieldCurves(file.path(yieldPath, "au_table.csv"),
+                                file.path(yieldPath, "curve_points_table.csv"))
 
   # Snapshot age at start
   sim$ageAtStart <- sim$landscape[["age"]]
@@ -149,12 +163,24 @@ CollectStats <- function(sim) {
   harvestArea_ha <- if (nrow(harvestRow) > 0) harvestRow$ws3_harvestArea_pixels * resInHA else 0
   burnArea_ha    <- sum(sim$burnSummary[year == t, areaBurned], na.rm = TRUE)
 
-  # 2. Burned biomass
-  burnedBiomass_gm2 <- computeBurnBiomass(
+  # 2. Burned volume (ws3 yield curves at the pre-fire ages) and, optionally, biomass
+  burnedVol_m3 <- computeBurnVolume(
     rstCurrentBurn = sim$rstCurrentBurn,
-    pixelGroupMap  = sim$pixelGroupMap,
-    cohortData     = sim$cohortData
+    au             = sim$landscape[["au"]],
+    age            = sim$landscape[["age"]],
+    yields         = mod$yields,
+    resInHA        = resInHA
   )
+  burnedBiomass_t <- if (isTRUE(P(sim)$burnedBiomass)) {
+    computeBurnBiomass(
+      rstCurrentBurn = sim$rstCurrentBurn,
+      pixelGroupMap  = sim$pixelGroupMap,
+      cohortData     = sim$cohortData,
+      resInHA        = resInHA
+    )
+  } else {
+    NA_real_
+  }
 
   # 3. Volume + GS on planning years only
   planFreq        <- params(sim)$.globals$planning_period_freq
@@ -173,7 +199,8 @@ CollectStats <- function(sim) {
     year              = t,
     harvestArea_ha    = harvestArea_ha,
     burnArea_ha       = burnArea_ha,
-    burnedBiomass_gm2 = burnedBiomass_gm2,
+    burnedVol_m3      = burnedVol_m3,
+    burnedBiomass_t   = burnedBiomass_t,
     harvestVol_m3     = harvestVol_m3,
     growingStock_m3   = growingStock_m3
   )
@@ -222,8 +249,12 @@ MakePlots <- function(sim) {
                      filename = file.path(figDir, "fig_harvestVol"))
   SpaDES.core::Plots(data = plotGrowingStock(annDT),   types = plotTypes,
                      filename = file.path(figDir, "fig_growingStock"))
-  SpaDES.core::Plots(data = plotBurnedBiomass(annDT),  types = plotTypes,
-                     filename = file.path(figDir, "fig_burnedBiomass"))
+  SpaDES.core::Plots(data = plotBurnedVolume(annDT),   types = plotTypes,
+                     filename = file.path(figDir, "fig_burnedVolume"))
+  if (isTRUE(P(sim)$burnedBiomass)) {
+    SpaDES.core::Plots(data = plotBurnedBiomass(annDT), types = plotTypes,
+                       filename = file.path(figDir, "fig_burnedBiomass"))
+  }
   SpaDES.core::Plots(data = plotMissedHarvest(missedDT), types = plotTypes,
                      filename = file.path(figDir, "fig_missedHarvest"))
 

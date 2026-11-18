@@ -11,7 +11,8 @@ initAnnualDT <- function() {
     year              = numeric(0),
     harvestArea_ha    = numeric(0),
     burnArea_ha       = numeric(0),
-    burnedBiomass_gm2 = numeric(0),
+    burnedVol_m3      = numeric(0),
+    burnedBiomass_t   = numeric(0),
     harvestVol_m3     = numeric(0),
     growingStock_m3   = numeric(0)
   )
@@ -31,14 +32,15 @@ initMissedHarvestDT <- function() {
 # ---------------------------------------------------------------------------
 
 appendAnnualRow <- function(dt, year, harvestArea_ha, burnArea_ha,
-                             burnedBiomass_gm2,
+                             burnedVol_m3, burnedBiomass_t,
                              harvestVol_m3 = NA_real_,
                              growingStock_m3 = NA_real_) {
   new_row <- data.table::data.table(
     year              = year,
     harvestArea_ha    = harvestArea_ha,
     burnArea_ha       = burnArea_ha,
-    burnedBiomass_gm2 = burnedBiomass_gm2,
+    burnedVol_m3      = burnedVol_m3,
+    burnedBiomass_t   = burnedBiomass_t,
     harvestVol_m3     = harvestVol_m3,
     growingStock_m3   = growingStock_m3
   )
@@ -66,7 +68,14 @@ appendMissedHarvestRow <- function(dt, year, plannedHarvestArea_ha,
 #' @param pixelGroupMap  SpatRaster. Integer pixel group IDs.
 #' @param cohortData     data.table with columns: pixelGroup (integer), B (numeric, g/m2).
 #' @return Numeric scalar: sum of B across all cohorts in all burned pixel groups.
-computeBurnBiomass <- function(rstCurrentBurn, pixelGroupMap, cohortData) {
+#' Total biomass (tonnes) of the cohorts in this year's burned pixels.
+#'
+#' Needs LandR cohortData: one row per pixelGroup x cohort, B in g/m2.
+#' spades_ws3_landrAge's placeholder cohortData (one row per pixel, B = 7777) does not
+#' qualify; set the module parameter burnedBiomass = FALSE when it is the only source.
+#'
+#' @param resInHA Numeric. Pixel area in hectares.
+computeBurnBiomass <- function(rstCurrentBurn, pixelGroupMap, cohortData, resInHA) {
   burnedIdx <- which(terra::values(rstCurrentBurn) > 0)
   if (length(burnedIdx) == 0) return(0)
 
@@ -76,7 +85,72 @@ computeBurnBiomass <- function(rstCurrentBurn, pixelGroupMap, cohortData) {
   if (nrow(burnedPGs) == 0) return(0)
 
   joined <- cohortData[burnedPGs, on = "pixelGroup", allow.cartesian = TRUE, nomatch = 0]
-  sum(joined$B, na.rm = TRUE)
+  # g/m2 summed over burned pixels x pixel area (m2) / 1e6 g per tonne
+  sum(joined$B, na.rm = TRUE) * resInHA * 1e4 / 1e6
+}
+
+# ---------------------------------------------------------------------------
+# Burned volume (ws3 yield curves)
+# ---------------------------------------------------------------------------
+
+#' Read the ws3 yield curves (merchantable volume, m3/ha, by age).
+#'
+#' Same tables and the same subset of points as spades_ws3's bootstrap_yields():
+#' au_table.csv maps each AU (the landscape "au" layer) to its unmanaged curve, and only
+#' points at multiples of periodLength up to xMax are used.
+#'
+#' @param auTablePath,curvePointsPath Paths to au_table.csv and curve_points_table.csv.
+#' @return list(auToCurve = named vector au_id -> curve_id, points = list of data.tables (x, y)
+#'   named by curve_id).
+loadYieldCurves <- function(auTablePath, curvePointsPath, periodLength = 10, xMax = 350) {
+  au <- data.table::fread(auTablePath)
+  cp <- data.table::fread(curvePointsPath)
+  cp <- cp[x %% periodLength == 0 & x <= xMax]
+  data.table::setorder(cp, curve_id, x)
+  list(
+    auToCurve = stats::setNames(au$unmanaged_curve_id, au$au_id),
+    points    = split(cp[, .(curve_id, x, y)], by = "curve_id", keep.by = FALSE)
+  )
+}
+
+#' Cell values of a one-layer SpatRaster; for a categorical layer, its category labels as numbers.
+#'
+#' spades_ws3_dataInit's landscape layers are categorical, so values() gives category indices
+#' (1, 2, ...), not the AU ids. terra::as.numeric() also returns the indices here.
+layerValues <- function(r) {
+  v <- terra::values(r)[, 1]
+  if (terra::is.factor(r)) {
+    lv <- terra::cats(r)[[1]]
+    labels <- lv[[terra::activeCat(r) + 1]]   # column 1 is ID; activeCat counts from the next one
+    v <- as.numeric(as.character(labels[match(v, lv[[1]])]))
+  }
+  v
+}
+
+#' Merchantable volume (m3) standing in this year's burned pixels, before the burn resets ages.
+#'
+#' Each burned pixel's volume is its AU's yield curve at its age (linear between curve points,
+#' held at the ends, as ws3 does) times the pixel area. Pixels with no AU or curve count 0.
+#'
+#' @param au,age  SpatRasters: the landscape "au" and "age" layers.
+#' @param yields  Output of loadYieldCurves().
+#' @param resInHA Numeric. Pixel area in hectares.
+computeBurnVolume <- function(rstCurrentBurn, au, age, yields, resInHA) {
+  burnedIdx <- which(terra::values(rstCurrentBurn) > 0)
+  if (length(burnedIdx) == 0) return(0)
+
+  dt <- data.table::data.table(au  = layerValues(au)[burnedIdx],
+                               age = layerValues(age)[burnedIdx])
+  dt <- dt[!is.na(au) & !is.na(age)]
+  dt[, curve := yields$auToCurve[as.character(au)]]
+  dt <- dt[!is.na(curve)]
+  if (nrow(dt) == 0) return(0)
+
+  dt[, vol := {
+    pts <- yields$points[[as.character(curve[1])]]
+    if (is.null(pts) || nrow(pts) == 0) 0 else stats::approx(pts$x, pts$y, xout = age, rule = 2)$y
+  }, by = curve]
+  sum(dt$vol) * resInHA
 }
 
 # ---------------------------------------------------------------------------

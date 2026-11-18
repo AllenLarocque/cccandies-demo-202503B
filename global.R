@@ -185,7 +185,8 @@ simin$modules <- c(simin$modules, localModules)
 # setupProject() drops params of modules it was not given, so set the local module's here.
 simin$params$ws3Verify_FRESH <- list(
   .plots  = "png",
-  resInHA = NA         # NA = auto-calculate from rasterToMatch
+  resInHA = NA,        # NA = auto-calculate from rasterToMatch
+  burnedBiomass = FALSE  # no LandR biomass here: cohortData is spades_ws3_landrAge's placeholder
 )
 
 
