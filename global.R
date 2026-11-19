@@ -40,12 +40,14 @@ times = list(start = 0, end = 200)
 .cores = c("sbw")
 n_ws3_workers=10L
 fireMultiplier = 1.5
+harvestTiming = "annual"  # spades_ws3: apply each year's planned harvest in that year ("period" = whole decade in the planning year)
+targetN = 2000            # scfmDataPrep fire-regime calibration sample size (1000 is a quick test value)
 pythonPath = NA  # NA: spades_ws3_dataInit installs Python 3.12 itself
 
 modules = c(
   "AllenLarocque/spades_ws3_dataInit@7809a24a53562d3f06b2e6638fd297cb6bed030d", # = feature/ws3-fresh-container-run; pinned by SHA, keep equal to the modules/spades_ws3_dataInit gitlink
-  "AllenLarocque/spades_ws3@dev",
-  "AllenLarocque/spades_ws3_landrAge@PE",
+  "AllenLarocque/spades_ws3@c6e9715deee085d2daf9b78e79897f378716029f", # = feature/ws3-fresh-integration: sync landscape ages + horizon fix + harvestTiming; keep equal to the modules/spades_ws3 gitlink
+  "AllenLarocque/spades_ws3_landrAge@d12a691898b1ded0d146904fdf63d785e9551909", # = fix/adjustBurnedPixels-priority (on PE); keep equal to the modules/spades_ws3_landrAge gitlink
   "AllenLarocque/scfm@9213cb43a4a0a79d7874a8e0dab568ee5c4110b3", # = feature/fireMultiplier (on development); keep equal to the modules/scfm gitlink
   "ws3Verify_FRESH"                               # Local module for verification plots
   #"AllenLarocque/spades_ws3_diag_FRESH@main",        # This module contains diagnostic plots for the WS3_FRESH module
@@ -156,11 +158,12 @@ simin <- SpaDES.project::setupProject(
                       target.scalefactors = target.scalefactors,
                       workers=n_ws3_workers,
                       saveFM = TRUE,                    # Enable saving of fm objects
+                      harvestTiming = harvestTiming,
                       saveFM.path = "fm_checkpoints"),
     spades_ws3_diag_FRESH = list(.plotInitialTime = 0,
                                  .plotInterval = 1),
     scfmDataPrep = list(.useParallelFireRegimePolys = TRUE, #use Greg's cores
-                        targetN = 1000, #unserious fire param during testing
+                        targetN = targetN,
                         fireMultiplier = fireMultiplier),  # Multiplier to scale fire at parameter estimation (1.0 = normal, 2.0 = double, 0.0 = no fire). Scales targetBurnRate relative to observed data.
     fireHarvestPlots = list(resInHA = NULL) # NULL means calculate from rasterToMatch
     # ws3Verify_FRESH params are set after setupProject() (local module, see below)
@@ -200,7 +203,7 @@ if (any(grepl("scfm", simin$modules, ignore.case = TRUE))) {
                            "scfm")
 
   # Add scfm params manually since setupProject strips them out
-  simin$params$scfmDataPrep$targetN <- 1000 #quick calibration while testing (at least 2K for real)
+  simin$params$scfmDataPrep$targetN <- targetN
   simin$params$scfmDataPrep$.useParallelFireRegimePolys = TRUE
   simin$params$scfmDataPrep$fireMultiplier <- fireMultiplier
 }
