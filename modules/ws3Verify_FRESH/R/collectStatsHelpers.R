@@ -203,18 +203,23 @@ computeMissedHarvest <- function(basenames, tifDir, year, rstCurrentBurn, resInH
 # ForestModel queries (reticulate)
 # ---------------------------------------------------------------------------
 
-#' Query harvested volume and growing stock from a ws3 ForestModel for a given period.
+#' Query harvested volume and growing stock from the ws3 ForestModel's current plan.
+#'
+#' spades_ws3 resets the ForestModel and re-plans every planning_period_freq years, so in a
+#' planning year the plan just made starts now: its period 1 holds this decade's harvest and
+#' its period 0 is the standing inventory at the start of the plan. (ws3 keeps only periods
+#' 0..horizon, so a period counted from the simulation start is wrong after the first plan and
+#' out of range after `horizon` plans.)
 #'
 #' @param fm     A reticulate Python proxy for a ws3 ForestModel instance.
 #'               Requires methods: compile_product(period, expr, acode) and
 #'               inventory(period, yname).
-#' @param period Integer. ws3 planning period index (1-based).
-#'               Compute as: (time(sim) - start(sim)) / planning_period_freq
+#' @param harvestPeriod Integer. Plan period whose harvest is reported (default 1, the current one).
+#' @param stockPeriod   Integer. Plan period whose inventory is reported (default 0, now).
 #' @return Named list: harvestVol (m3, numeric), growingStock (m3, numeric).
-queryFmStats <- function(fm, period) {
-  period <- as.integer(period)
-  harvestVol   <- fm$compile_product(period, 'totvol', acode = 'harvest')
-  growingStock <- fm$inventory(period, 'totvol')
+queryFmStats <- function(fm, harvestPeriod = 1L, stockPeriod = 0L) {
+  harvestVol   <- fm$compile_product(as.integer(harvestPeriod), 'totvol', acode = 'harvest')
+  growingStock <- fm$inventory(as.integer(stockPeriod), 'totvol')
   list(
     harvestVol   = as.numeric(harvestVol),
     growingStock = as.numeric(growingStock)
