@@ -208,7 +208,7 @@ CollectStats <- function(sim) {
   missed <- computeMissedHarvest(
     basenames      = basenames,
     tifDir         = tifDir,
-    year           = t,
+    year           = calendarYear(t, start(sim), params(sim)$.globals$base.year),  # spades_ws3 names the files by calendar year
     rstCurrentBurn = sim$rstCurrentBurn,
     resInHA        = resInHA
   )

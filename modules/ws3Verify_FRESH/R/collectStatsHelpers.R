@@ -157,6 +157,19 @@ computeBurnVolume <- function(rstCurrentBurn, au, age, yields, resInHA) {
 # Missed harvest
 # ---------------------------------------------------------------------------
 
+#' Calendar year of a simulation time, as spades_ws3 uses it in file names
+#' (inventory_<year>.tif, projected_harvest_<year>.tif).
+#'
+#' @param t         Simulation time (time(sim)).
+#' @param start     Simulation start (start(sim)).
+#' @param baseYear  Calendar year of the simulation start (the base.year global).
+#' @return Integer calendar year.
+calendarYear <- function(t, start, baseYear) {
+  if (is.null(baseYear) || length(baseYear) != 1 || is.na(baseYear))
+    stop("calendarYear(): base.year must be a single year")
+  as.integer(baseYear + t - start)
+}
+
 #' Compute planned harvest area and how much of it burned before harvest.
 #'
 #' Reads the projected_harvest_<year>.tif written by the spades_ws3 Python layer
@@ -165,7 +178,7 @@ computeBurnVolume <- function(rstCurrentBurn, au, age, yields, resInHA) {
 #' @param basenames      Character vector of TSA basenames (e.g. c("tsa40","tsa41")).
 #' @param tifDir         Path to the tif directory (inputPath(sim)/tif.path).
 #'                       Each basename has a subdirectory: tifDir/<basename>/.
-#' @param year           Numeric. Simulation year (used to build file name).
+#' @param year           Numeric. Calendar year, as in the file name (see calendarYear()).
 #' @param rstCurrentBurn SpatRaster. Values > 0 indicate pixels that burned this year.
 #' @param resInHA        Numeric. Pixel area in hectares.
 #' @return Named list: planned (ha), missed (ha). Both NA if no tif found.
