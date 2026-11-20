@@ -86,3 +86,20 @@ closePlanPeriod <- function(planDT, harvestDT, planYear, periodLength) {
   out[per, (cols) := mget(paste0("i.", cols)), on = c(keys, "year")]
   out[]
 }
+
+#' Landscape cells in this year's projected_harvest_<year>.tif of each TSA (value 1).
+#'
+#' Each TSA's raster has its own extent; cells are mapped onto the landscape grid by coordinates.
+#' Missing files contribute nothing.
+plannedHarvestCells <- function(tifDir, basenames, yearCal, template) {
+  cells <- lapply(unlist(basenames), function(bn) {
+    f <- file.path(tifDir, bn, paste0("projected_harvest_", yearCal, ".tif"))
+    if (!file.exists(f)) return(integer(0))
+    r <- terra::rast(f)
+    idx <- which(terra::values(r)[, 1] == 1)
+    if (!length(idx)) return(integer(0))
+    as.integer(terra::cellFromXY(template, terra::xyFromCell(r, idx)))
+  })
+  out <- unique(unlist(cells))
+  if (is.null(out)) integer(0) else out[!is.na(out)]
+}

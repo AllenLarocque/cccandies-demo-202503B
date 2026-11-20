@@ -107,3 +107,15 @@ test_that("closePlanPeriod fills each TSA's own row and leaves other plan years 
   expect_equal(out[year == 10 & tsa == "tsa40", cutArea_ha], 10)
   expect_true(all(is.na(out[year == 0, cutArea_ha])))
 })
+
+test_that("plannedHarvestCells maps each TSA's projected-harvest raster onto the landscape grid", {
+  d <- withr::local_tempdir()
+  tmpl <- terra::rast(nrows = 2, ncols = 4, xmin = 0, xmax = 4, ymin = 0, ymax = 2, vals = 0)
+  for (bn in c("tsa41", "tsa40")) dir.create(file.path(d, bn))
+  r41 <- terra::rast(nrows = 2, ncols = 2, xmin = 0, xmax = 2, ymin = 0, ymax = 2, vals = c(1, 0, NA, 1))
+  r40 <- terra::rast(nrows = 2, ncols = 2, xmin = 2, xmax = 4, ymin = 0, ymax = 2, vals = c(0, 1, 0, 0))
+  terra::writeRaster(r41, file.path(d, "tsa41", "projected_harvest_2021.tif"))
+  terra::writeRaster(r40, file.path(d, "tsa40", "projected_harvest_2021.tif"))
+  expect_equal(sort(plannedHarvestCells(d, list("tsa41", "tsa40"), 2021L, tmpl)), c(1L, 4L, 6L))
+  expect_identical(plannedHarvestCells(d, list("tsa41"), 1999L, tmpl), integer(0))
+})
