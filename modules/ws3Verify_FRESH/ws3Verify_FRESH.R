@@ -130,6 +130,7 @@ doEvent.ws3Verify_FRESH <- function(sim, eventTime, eventType) {
 
 Init <- function(sim) {
   source(file.path(moduleSourceDir(sim), "R", "collectStatsHelpers.R"))
+  source(file.path(moduleSourceDir(sim), "R", "tablesCore.R"))
   source(file.path(moduleSourceDir(sim), "R", "makePlotsHelpers.R"))
 
   # Resolve resInHA
@@ -161,6 +162,7 @@ Init <- function(sim) {
 
 CollectStats <- function(sim) {
   source(file.path(moduleSourceDir(sim), "R", "collectStatsHelpers.R"))
+  source(file.path(moduleSourceDir(sim), "R", "tablesCore.R"))
 
   t         <- time(sim)
   resInHA   <- sim$.resInHA
