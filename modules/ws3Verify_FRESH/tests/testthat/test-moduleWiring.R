@@ -54,3 +54,14 @@ test_that("init schedules the save module's 'later' event at the end, so outputs
   }))), collapse = "\n")
   expect_match(ev, 'scheduleEvent\\(sim, end\\(sim\\), "save", "later"')
 })
+
+test_that("V2 is filled at endOfYear from cells burned this year; V5 knows the plan year and earlier cuts", {
+  eoy <- fnText("EndOfYear")
+  expect_match(eoy, "fireResetCounts")
+  expect_match(eoy, "burnedForest")
+  ct <- fnText("CollectTables")
+  expect_match(ct, "elapsed = ")
+  expect_match(ct, "cutEarlier = ")
+  expect_match(ct, "periodLength")
+  expect_false(grepl("t == start(sim)) NULL", ct, fixed = TRUE))   # V3 compares in year 0 too
+})

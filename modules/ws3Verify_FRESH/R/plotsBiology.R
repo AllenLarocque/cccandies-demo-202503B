@@ -10,7 +10,7 @@
 
 #' B1. Share of each land base's forest by age class over time (mean over runs).
 plotB1AgeStructure <- function(tables, tsa = NULL, facet = "none") {
-  dt <- selectTsa(tables$ageDT, tsa)
+  dt <- selectTsa(tables$ageDT, tsa)          # a copy
   dt[, ageClass := .ageClass(ageBin)]
   grp <- c("scenario", "rep", "year", "landBase", "ageClass", if (facet == "tsa") "tsa")
   a <- dt[, .(area_ha = sum(area_ha)), by = grp]
@@ -25,7 +25,7 @@ plotB1AgeStructure <- function(tables, tsa = NULL, facet = "none") {
     ggplot2::scale_fill_manual(values = stats::setNames(rev(wsAgeRamp), rev(labs)), breaks = labs) +
     ggplot2::scale_y_continuous(labels = function(x) paste0(round(100 * x), "%"), expand = c(0, 0)) +
     ggplot2::scale_x_continuous(expand = c(0, 0)) +
-    (if (facet == "tsa") ggplot2::facet_grid(tsa ~ landBase) else ggplot2::facet_wrap(~landBase, nrow = 1)) +
+    facetGrid(d, rows = if (data.table::uniqueN(d$scenario) > 1 || facet == "tsa") NULL, cols = "landBase", facet = facet) +
     ggplot2::labs(x = "Year", y = "Share of land base", fill = "Stand age (years)",
                   title = "B1. Age structure by land base",
                   subtitle = paste("ws3 harvests only the THLB; elsewhere only fire resets age.", runsNote(dt))) + wsTheme()
@@ -58,7 +58,7 @@ plotB3WoodSupply <- function(tables, tsa = NULL, facet = "none") {
   ggplot2::ggplot(s, ggplot2::aes(year)) + runLayers(s) +
     ggplot2::scale_colour_manual(values = stats::setNames(rep(wsColours[["harvest"]], 3), vars), guide = "none") +
     ggplot2::scale_fill_manual(values = stats::setNames(rep(wsColours[["harvest"]], 3), vars)) +
-    (if (facet == "tsa") ggplot2::facet_grid(variable ~ tsa, scales = "free_y") else ggplot2::facet_wrap(~variable, ncol = 1, scales = "free_y")) +
+    facetGrid(s, rows = "variable", facet = facet, scales = "free_y") +
     ggplot2::labs(x = "Year", y = NULL, title = "B3. Wood supply",
                   subtitle = paste("Realised harvest: volume at the age when cut.", runsNote(dt))) + wsTheme()
 }
@@ -99,25 +99,39 @@ fireCycle <- function(tables, tsa = NULL, window = 50, facet = "none") {
 }
 
 #' B5. Fire: annual area burned, fire-size distribution, realised fire cycle by land base.
+#' Annual burned area in the selected TSAs, zero-filled on every run x year, then across runs.
+annualBurn <- function(tables, tsa = NULL, facet = "none") {
+  extra <- if (facet == "tsa") "tsa" else character(0)
+  g <- runGrid(tables, tsa, facet)
+  b <- sumOverTsa(selectTsa(tables$fireDT, tsa), "burned_ha", facet = facet)
+  d <- merge(g, b, by = c("scenario", "rep", "year", extra), all.x = TRUE)
+  d[is.na(burned_ha), burned_ha := 0]
+  summariseRuns(d, "burned_ha", by = c("year", extra))
+}
+
+#' B5. Fire: annual area burned, fire-size distribution, realised fire cycle by land base.
 plotB5Fire <- function(tables, tsa = NULL, facet = "none", window = 50) {
-  fd <- selectTsa(tables$fireDT, tsa)
-  s1 <- summariseRuns(sumOverTsa(fd, "burned_ha", facet = facet), "burned_ha", by = c("year", if (facet == "tsa") "tsa"))
+  s1 <- annualBurn(tables, tsa, facet)
   p1 <- ggplot2::ggplot(s1, ggplot2::aes(year)) + runLayers(s1) +
     ggplot2::scale_colour_manual(values = wsColours[["fire"]], guide = "none") + ggplot2::scale_fill_manual(values = wsColours[["fire"]]) +
     facetLayer(s1, facet) + ggplot2::labs(x = "Year", y = "Burned (ha)", title = "Area burned per year") + wsTheme()
   ev <- selectTsa(tables$fireEventsDT, tsa)
-  grp <- c("scenario", if (facet == "tsa") "tsa")
-  ev <- ev[, {u <- sort(unique(size_ha)); .(size_ha = u, exceed = vapply(u, function(x) mean(size_ha >= x), 0))}, by = grp]
-  p2 <- ggplot2::ggplot(ev, ggplot2::aes(size_ha, exceed)) + ggplot2::geom_step(colour = wsColours[["fire"]], direction = "vh") +
-    ggplot2::scale_x_log10() + ggplot2::scale_y_log10() + facetLayer(ev, facet) +
-    ggplot2::labs(x = "Fire size (ha)", y = "Share of fires this size or larger", title = "Fire sizes (all runs pooled)") + wsTheme()
+  p2 <- if (is.null(ev) || !nrow(ev)) emptyPlot("Fire sizes", "No fires.") else {
+    grp <- c("scenario", if (facet == "tsa") "tsa")
+    ev <- ev[, {u <- sort(unique(size_ha)); .(size_ha = u, exceed = vapply(u, function(x) mean(size_ha >= x), 0))}, by = grp]
+    ggplot2::ggplot(ev, ggplot2::aes(size_ha, exceed, group = scenario)) +
+      ggplot2::geom_step(colour = wsColours[["fire"]], direction = "vh") +
+      ggplot2::scale_x_log10() + ggplot2::scale_y_log10() + facetLayer(ev, facet) +
+      ggplot2::labs(x = "Fire size (ha)", y = "Share of fires this size or larger", title = "Fire sizes (all runs pooled)") + wsTheme()
+  }
   window <- min(window, data.table::uniqueN(tables$ageDT$year))
-  s3 <- fireCycle(tables, tsa, window, facet)
-  p3 <- ggplot2::ggplot(s3, ggplot2::aes(year)) + runLayers(s3, colour = "landBase") +
-    ggplot2::scale_colour_manual(values = wsLandBase) + ggplot2::scale_fill_manual(values = wsLandBase) +
-    ggplot2::scale_y_log10() + facetLayer(s3, facet) +
-    ggplot2::labs(x = "Year", y = "Fire cycle (years, log)", colour = NULL,
-                  title = sprintf("Realised fire cycle (%d-year trailing window)", window)) + wsTheme()
+  s3 <- if (is.null(tables$fireDT) || !nrow(tables$fireDT)) NULL else fireCycle(tables, tsa, window, facet)[is.finite(mean)]
+  p3 <- if (is.null(s3) || !nrow(s3)) emptyPlot("Realised fire cycle", "No burns in ws3's forest.") else
+    ggplot2::ggplot(s3, ggplot2::aes(year)) + runLayers(s3, colour = "landBase") +
+      ggplot2::scale_colour_manual(values = wsLandBase) + ggplot2::scale_fill_manual(values = wsLandBase) +
+      ggplot2::scale_y_log10() + facetLayer(s3, facet) +
+      ggplot2::labs(x = "Year", y = "Fire cycle (years, log)", colour = NULL,
+                    title = sprintf("Realised fire cycle (%d-year trailing window)", window)) + wsTheme()
   patchwork::wrap_plots(p1, p2, p3, ncol = 1) +
     patchwork::plot_annotation(title = "B5. Fire", subtitle = runsNote(tables$ageDT), theme = wsTheme())
 }
@@ -140,7 +154,10 @@ fireSelectivity <- function(tables, tsa = NULL, facet = "none") {
 
 #' B6. Fire selectivity by age class (1 = burns in proportion to area).
 plotB6FireSelectivity <- function(tables, tsa = NULL, facet = "none") {
+  title <- "B6. Fire selectivity by age class"
+  if (is.null(tables$fireDT) || !nrow(tables$fireDT)) return(emptyPlot(title, "No burns: nothing to compare."))
   s <- fireSelectivity(tables, tsa, facet)
+  if (!nrow(s)) return(emptyPlot(title, "No burns in ws3's forest: nothing to compare."))
   s[, ageClass := factor(ageClass, levels = rev(levels(ageClass)))]
   ggplot2::ggplot(s, ggplot2::aes(ageClass, mean, fill = landBase)) +
     ggplot2::geom_hline(yintercept = 1, colour = wsColours[["reference"]], linetype = 2) +
@@ -148,46 +165,61 @@ plotB6FireSelectivity <- function(tables, tsa = NULL, facet = "none") {
     (if (any(s$nRuns > 1)) ggplot2::geom_errorbar(ggplot2::aes(ymin = lo, ymax = hi),
                                                   position = ggplot2::position_dodge(width = 0.8), width = 0.2)) +
     ggplot2::scale_fill_manual(values = wsLandBase) +
-    (if (facet == "tsa") ggplot2::facet_wrap(~tsa) else NULL) +
-    ggplot2::labs(x = "Stand age (years)", y = "Share burned / share of area", fill = NULL,
-                  title = "B6. Fire selectivity by age class",
+    facetGrid(s, facet = facet) +
+    ggplot2::labs(x = "Stand age (years)", y = "Share burned / share of area", fill = NULL, title = title,
                   subtitle = paste("1 = burns in proportion to area; all years pooled.", runsNote(tables$ageDT))) + wsTheme()
 }
 
 #' B7. Harvest vs fire area per decade, by land base.
-plotB7DisturbanceMix <- function(tables, tsa = NULL, facet = "none") {
+#' Per run: harvest and fire area (and burned volume) per decade x land base, zero-filled, then
+#' mean and 5-95% band across each scenario's own runs. Harvest is placed in the land base where it
+#' was observed (harvestAgeDT cut rows), so a non-THLB cut shows up there.
+decadeTotals <- function(tables, tsa = NULL, facet = "none") {
   extra <- if (facet == "tsa") "tsa" else character(0)
-  h <- selectTsa(tables$harvestDT, tsa)[, .(area = sum(harvested_landscape_ha)), by = c("scenario", "rep", "year", extra)][
-    , `:=`(landBase = "THLB", disturbance = "Harvest")]
-  f <- selectTsa(tables$fireDT, tsa)[landBase %in% c("THLB", "Non-THLB"), .(area = sum(burned_ha)),
-                                     by = c("scenario", "rep", "year", "landBase", extra)][, disturbance := "Fire"]
-  d <- rbind(h, f, use.names = TRUE)
-  d[, decade := (year %/% 10) * 10]
-  nRuns <- runCount(tables$ageDT)
-  s <- d[, .(area = sum(area) / nRuns), by = c("scenario", "decade", "landBase", "disturbance", extra)]
-  s[, landBase := factor(landBase, levels = c("THLB", "Non-THLB"))]
-  ggplot2::ggplot(s, ggplot2::aes(decade + 5, area, fill = disturbance)) +
-    ggplot2::geom_col(width = 9) +
+  key <- c("scenario", "rep", "decade", "landBase", extra)
+  ha <- selectTsa(tables$harvestAgeDT, tsa)
+  h <- if (is.null(ha) || !nrow(ha)) NULL else
+    ha[ageRef == "cut"][, decade := (year %/% 10L) * 10L][, .(area = sum(area_ha), vol = 0), by = key][, disturbance := "Harvest"]
+  fd <- selectTsa(tables$fireDT, tsa)
+  f <- if (is.null(fd) || !nrow(fd)) NULL else
+    fd[landBase %in% c("THLB", "Non-THLB")][, decade := (year %/% 10L) * 10L][
+      , .(area = sum(burned_ha), vol = sum(burnedVol_m3)), by = key][, disturbance := "Fire"]
+  g <- runGrid(tables, tsa, facet)[, decade := (year %/% 10L) * 10L]
+  g <- unique(g[, c("scenario", "rep", "decade", extra), with = FALSE])
+  g <- g[, data.table::CJ(landBase = c("THLB", "Non-THLB"), disturbance = c("Harvest", "Fire")), by = names(g)]
+  ev <- data.table::rbindlist(list(h, f), use.names = TRUE)
+  if (!nrow(ev)) ev <- g[0][, `:=`(area = numeric(), vol = numeric())]
+  d <- merge(g, ev, by = c(key, "disturbance"), all.x = TRUE)
+  d[is.na(area), `:=`(area = 0, vol = 0)]
+  summariseRuns(d, c("area", "vol"), by = c("decade", "landBase", "disturbance", extra))[
+    , landBase := factor(landBase, levels = c("THLB", "Non-THLB"))]
+}
+
+#' B7. Harvest vs fire area per decade, by land base.
+plotB7DisturbanceMix <- function(tables, tsa = NULL, facet = "none") {
+  s <- decadeTotals(tables, tsa, facet)[variable == "area"]
+  ggplot2::ggplot(s, ggplot2::aes(decade + 5, mean, fill = disturbance)) +
+    ggplot2::geom_col(position = ggplot2::position_dodge(width = 9), width = 8.5) +
+    (if (any(s$nRuns > 1)) ggplot2::geom_errorbar(ggplot2::aes(ymin = lo, ymax = hi),
+                                                  position = ggplot2::position_dodge(width = 9), width = 3)) +
     ggplot2::scale_fill_manual(values = c(Harvest = wsColours[["harvest"]], Fire = wsColours[["fire"]])) +
     ggplot2::scale_y_continuous(labels = function(x) format(x / 1e3, trim = TRUE)) +
-    (if (facet == "tsa") ggplot2::facet_grid(tsa ~ landBase) else ggplot2::facet_wrap(~landBase, nrow = 1)) +
-    ggplot2::labs(x = "Decade", y = "Area per decade (thousand ha, mean per run)", fill = NULL,
+    facetGrid(s, cols = "landBase", facet = facet) +
+    ggplot2::labs(x = "Decade", y = "Area per decade (thousand ha)", fill = NULL,
                   title = "B7. Disturbance mix: harvest vs fire", subtitle = runsNote(tables$ageDT)) + wsTheme()
 }
 
 #' B8. Merchantable volume burned per decade, by land base.
 plotB8BurnedVolume <- function(tables, tsa = NULL, facet = "none") {
-  extra <- if (facet == "tsa") "tsa" else character(0)
-  d <- selectTsa(tables$fireDT, tsa)[landBase %in% c("THLB", "Non-THLB")]
-  d[, decade := (year %/% 10) * 10]
-  nRuns <- runCount(tables$ageDT)
-  s <- d[, .(vol = sum(burnedVol_m3) / nRuns), by = c("scenario", "decade", "landBase", extra)]
-  s[, landBase := factor(landBase, levels = c("THLB", "Non-THLB"))]
-  ggplot2::ggplot(s, ggplot2::aes(decade + 5, vol, fill = landBase)) + ggplot2::geom_col(width = 9) +
+  s <- decadeTotals(tables, tsa, facet)[variable == "vol" & disturbance == "Fire"]
+  ggplot2::ggplot(s, ggplot2::aes(decade + 5, mean, fill = landBase)) +
+    ggplot2::geom_col(position = ggplot2::position_dodge(width = 9), width = 8.5) +
+    (if (any(s$nRuns > 1)) ggplot2::geom_errorbar(ggplot2::aes(ymin = lo, ymax = hi),
+                                                  position = ggplot2::position_dodge(width = 9), width = 3)) +
     ggplot2::scale_fill_manual(values = wsLandBase) +
     ggplot2::scale_y_continuous(labels = function(x) format(x / 1e6, trim = TRUE)) +
-    (if (facet == "tsa") ggplot2::facet_wrap(~tsa) else facetLayer(s, "none")) +
-    ggplot2::labs(x = "Decade", y = "Volume burned (million m3 per decade, mean per run)", fill = NULL,
+    facetGrid(s, facet = facet) +
+    ggplot2::labs(x = "Decade", y = "Volume burned (million m3 per decade)", fill = NULL,
                   title = "B8. Merchantable volume burned",
                   subtitle = paste("ws3 yield curves at the pre-fire age.", runsNote(tables$ageDT))) + wsTheme()
 }
@@ -211,13 +243,18 @@ mapB9 <- function(maps) {
       }
     }
   } else {
-    burn <- terra::app(terra::rast(lapply(maps, function(r) r[["burnCount"]])), mean)
-    harv <- terra::app(terra::rast(lapply(maps, function(r) r[["harvestCount"]])), mean)
-    op <- graphics::par(mfrow = c(1, 2)); on.exit(graphics::par(op))
-    terra::plot(burn, main = sprintf("Mean times burned (%d runs)", length(maps)),
-                col = grDevices::hcl.colors(20, "Oranges", rev = TRUE))
-    terra::plot(harv, main = sprintf("Mean times harvested (%d runs)", length(maps)),
-                col = grDevices::hcl.colors(20, "Greens", rev = TRUE))
+    # runs can cover different TSAs (grids): average within each group of identical geometry
+    geom <- vapply(maps, function(r) paste(c(as.vector(terra::ext(r)), terra::res(r), dim(r)[1:2]), collapse = "_"), "")
+    groups <- split(maps, factor(geom, levels = unique(geom)))
+    op <- graphics::par(mfrow = c(length(groups), 2)); on.exit(graphics::par(op))
+    for (g in groups) {
+      burn <- terra::app(terra::rast(lapply(g, function(r) r[["burnCount"]])), mean, na.rm = TRUE)
+      harv <- terra::app(terra::rast(lapply(g, function(r) r[["harvestCount"]])), mean, na.rm = TRUE)
+      terra::plot(burn, main = sprintf("Mean times burned (%d runs)", length(g)),
+                  col = grDevices::hcl.colors(20, "Oranges", rev = TRUE))
+      terra::plot(harv, main = sprintf("Mean times harvested (%d runs)", length(g)),
+                  col = grDevices::hcl.colors(20, "Greens", rev = TRUE))
+    }
   }
   invisible(NULL)
 }

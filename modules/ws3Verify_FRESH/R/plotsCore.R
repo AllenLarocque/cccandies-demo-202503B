@@ -16,7 +16,8 @@ wsTheme <- function() {
 
 #' Rows of the chosen TSAs (NULL = all, including rows with tsa NA).
 selectTsa <- function(dt, tsa = NULL) {
-  if (is.null(tsa)) return(dt)
+  # always a copy: plots add columns by reference and must not change the caller's tables
+  if (is.null(tsa)) return(data.table::copy(dt))
   keep <- dt[["tsa"]] %in% tsa       # outside [ ]: inside, `tsa` would be the column
   dt[keep]
 }
@@ -59,14 +60,15 @@ runCount <- function(dt) {
 runLayers <- function(s, colour = "variable", fill = colour, dashed = character(0)) {
   # with one run lo = hi, so the band has no width. `dashed`: series drawn dashed on top, for
   # pairs that should coincide (a check passes when the lines overlap)
+  s <- s[!is.na(mean)]                # e.g. mean age at cut in a year without harvest
   top <- s[[colour]] %in% dashed
   list(
-    ggplot2::geom_ribbon(ggplot2::aes(ymin = lo, ymax = hi, fill = .data[[fill]]),
+    ggplot2::geom_ribbon(ggplot2::aes(ymin = lo, ymax = hi, fill = .data[[fill]]), data = s,
                          alpha = 0.2, colour = NA, show.legend = FALSE),
     ggplot2::geom_line(ggplot2::aes(y = mean, colour = .data[[colour]]), data = s[!top], linewidth = 0.9),
     if (any(top)) ggplot2::geom_line(ggplot2::aes(y = mean, colour = .data[[colour]]), data = s[top],
                                      linewidth = 0.9, linetype = "22"),
-    if (data.table::uniqueN(s$year) <= 15) ggplot2::geom_point(ggplot2::aes(y = mean, colour = .data[[colour]]), size = 1.6),
+    if (data.table::uniqueN(s$year) <= 15) ggplot2::geom_point(ggplot2::aes(y = mean, colour = .data[[colour]]), data = s, size = 1.6),
     ggplot2::scale_x_continuous(breaks = function(l) unique(round(pretty(l))))
   )
 }
@@ -85,4 +87,27 @@ facetLayer <- function(dt, facet = "none", scales = "fixed") {
 runsNote <- function(dt) {
   n <- runCount(dt)
   if (n > 1) sprintf("Mean of %d runs; band = 5-95%% across runs.", n) else "One run."
+}
+
+#' A placeholder figure saying why there is nothing to draw (e.g. a run without fire).
+emptyPlot <- function(title, why) {
+  ggplot2::ggplot() + ggplot2::theme_void() +
+    ggplot2::annotate("text", x = 0, y = 0, label = why, size = 4.5, colour = "grey35") +
+    ggplot2::labs(title = title, subtitle = why) + ggplot2::theme(plot.title.position = "plot")
+}
+
+#' Every run x year (x TSA when faceting) of the selected TSAs, from ageDT: the grid on which
+#' event-based measures (burns, cuts) are zero-filled before averaging across runs.
+runGrid <- function(tables, tsa = NULL, facet = "none") {
+  g <- selectTsa(tables$ageDT, tsa)
+  unique(g[, c("scenario", "rep", "year", if (identical(facet, "tsa")) "tsa"), with = FALSE])
+}
+
+#' Facet rows x columns with scenario (when several) and TSA (when faceting) added to the columns.
+facetGrid <- function(dt, rows = NULL, cols = NULL, facet = "none", scales = "fixed") {
+  cols <- c(cols, if (data.table::uniqueN(dt$scenario) > 1) "scenario", if (identical(facet, "tsa")) "tsa")
+  if (is.null(rows) && is.null(cols)) return(NULL)
+  f <- stats::as.formula(paste(if (is.null(rows)) "." else paste(rows, collapse = "+"), "~",
+                               if (is.null(cols)) "." else paste(cols, collapse = "+")))
+  ggplot2::facet_grid(f, scales = scales)
 }

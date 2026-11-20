@@ -15,6 +15,11 @@ test_that("harvestedCells are the cells whose age went down since last year", {
   expect_identical(harvestedCells(pf, prevAge = NULL), integer(0))
 })
 
+test_that("harvestedCells needs a reset to a young age: a stand stuck at 150 or without a previous age is not cut", {
+  pf <- .pf(age = c(150, 1, 1))
+  expect_identical(harvestedCells(pf, prevAge = c(150, NA, 90)), 3L)
+})
+
 test_that("tabulateHarvest compares ws3's applied harvest with the landscape's resets", {
   pf <- .pf(age = c(1, 1, 1, 51, 61))
   timing <- data.table(year = 2021L, basename = "tsa41", plannedPixels = 4L, appliedPixels = 3L,
@@ -29,7 +34,8 @@ test_that("tabulateHarvest compares ws3's applied harvest with the landscape's r
   expect_equal(out$plannedNotCut_ha, 2)
   expect_equal(out$meanAgeAtCut, 125)
   expect_equal(out$vol_m3, 3 * 300 * 2)                      # curve 101 held at 300 past age 30
-  expect_equal(out$skippedVolPlanAge_m3, 300 * 2)            # cell 4, plan age 50 -> 300 m3/ha
+  expect_equal(out$skippedVolPlanAge_m3, 0)                  # cell 4 aged normally: not a confirmed skip
+  expect_equal(out$missedUnexplainedVol_m3, 300 * 2)         # ... so an unexplained miss (plan age 50 -> 300 m3/ha)
   expect_equal(out$planRuleViolations_n, 0L)
 })
 
@@ -93,7 +99,8 @@ test_that("closePlanPeriod sums the period's harvest into the plan row: cut + sk
   planDT <- data.table(scenario = "s", rep = 1L, tsa = "tsa41", year = 10L, plannedVol_m3 = 900,
                        plannedArea_ha = 30)
   hv <- data.table(scenario = "s", rep = 1L, tsa = "tsa41", year = 10:20,
-                   harvested_landscape_ha = 3, cutVolPlanAge_m3 = 80, skippedVolPlanAge_m3 = 10, vol_m3 = 85)
+                   harvested_landscape_ha = 3, cutVolPlanAge_m3 = 80, skippedVolPlanAge_m3 = 10, vol_m3 = 85,
+                   missedUnexplainedVol_m3 = 0)
   out <- closePlanPeriod(planDT, hv, planYear = 10L, periodLength = 10L)
   expect_equal(out$cutArea_ha, 30)
   expect_equal(out$cutVolPlanAge_m3 + out$skippedVolPlanAge_m3, out$plannedVol_m3)
@@ -105,7 +112,7 @@ test_that("closePlanPeriod fills each TSA's own row and leaves other plan years 
                        year = c(0L, 0L, 10L, 10L), plannedVol_m3 = 1, plannedArea_ha = 1)
   hv <- data.table(scenario = "s", rep = 1L, tsa = rep(c("tsa40", "tsa41"), each = 10), year = rep(10:19, 2),
                    harvested_landscape_ha = rep(c(1, 5), each = 10), cutVolPlanAge_m3 = 0,
-                   skippedVolPlanAge_m3 = 0, vol_m3 = 0)
+                   skippedVolPlanAge_m3 = 0, vol_m3 = 0, missedUnexplainedVol_m3 = 0)
   out <- closePlanPeriod(planDT, hv, planYear = 10L, periodLength = 10L)
   expect_equal(out[year == 10 & tsa == "tsa41", cutArea_ha], 50)
   expect_equal(out[year == 10 & tsa == "tsa40", cutArea_ha], 10)
@@ -122,4 +129,25 @@ test_that("plannedHarvestCells maps each TSA's projected-harvest raster onto the
   terra::writeRaster(r40, file.path(d, "tsa40", "projected_harvest_2021.tif"))
   expect_equal(sort(plannedHarvestCells(d, list("tsa41", "tsa40"), 2021L, tmpl)), c(1L, 4L, 6L))
   expect_identical(plannedHarvestCells(d, list("tsa41"), 1999L, tmpl), integer(0))
+})
+
+test_that("only planned stands reset since the plan count as skipped; other misses are unexplained", {
+  # plan made 3 years ago; cells 1-3 planned this year, none cut
+  pf <- .pf(age = c(2, 113, 1))
+  out <- tabulateHarvest(pf, cut = integer(0), planAge = c(100, 110, 50), prevAge = c(1, 112, 0),
+                         plannedCells = 1:3, timing = NULL, yearCal = 2021L, resInHA = 1,
+                         yields = .yieldFixture(), elapsed = 2L)
+  expect_equal(out$skippedVolPlanAge_m3, 300 + 300)   # cells 1 and 3 burned since the plan
+  expect_equal(out$missedUnexplained_ha, 1)           # cell 2 aged normally and was not cut
+  expect_equal(out$missedUnexplainedVol_m3, 300)
+})
+
+test_that("period mode: planned cells already cut earlier in the period are neither skipped nor missed", {
+  pf <- .pf(age = c(3, 3))
+  out <- tabulateHarvest(pf, cut = integer(0), planAge = c(120, 130), prevAge = c(2, 2), plannedCells = 1:2,
+                         timing = NULL, yearCal = 2023L, resInHA = 1, yields = .yieldFixture(), elapsed = 3L,
+                         cutEarlier = 1:2)
+  expect_equal(out$skippedVolPlanAge_m3, 0)
+  expect_equal(out$missedUnexplained_ha, 0)
+  expect_equal(out$plannedNotCut_ha, 0)
 })

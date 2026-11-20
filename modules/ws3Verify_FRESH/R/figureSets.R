@@ -23,21 +23,23 @@ figureSpecs <- function(oldForestAges = c(140, 250)) {
 #' @param byTsa  Also write "<name>_byTSA" versions faceted by TSA (when there are several TSAs).
 writeFigureSets <- function(tables, maps, figDir, types = "png", oldForestAges = c(140, 250),
                             save = function(p, file) SpaDES.core::Plots(data = p, types = types, filename = file),
-                            byTsa = FALSE) {
-  specs <- figureSpecs(oldForestAges)
+                            byTsa = FALSE, specs = figureSpecs(oldForestAges)) {
   hasScfm <- !is.null(tables$scfmSummaryDT) && nrow(tables$scfmSummaryDT) > 0
   multiTsa <- data.table::uniqueN(stats::na.omit(tables$ageDT$tsa)) > 1
+  # a figure that fails is reported and skipped: it must never stop the run before outputs are saved
+  try1 <- function(nm, expr) tryCatch(expr, error = function(e)
+    warning("ws3Verify_FRESH: figure ", nm, " failed: ", conditionMessage(e), call. = FALSE))
   for (set in names(specs)) {
     dir.create(file.path(figDir, set), showWarnings = FALSE, recursive = TRUE)
     for (nm in names(specs[[set]])) {
       if (nm == "V6_fireRegime" && !hasScfm) next
       fn <- specs[[set]][[nm]]
-      save(fn(tables), file.path(figDir, set, nm))
+      try1(nm, save(fn(tables), file.path(figDir, set, nm)))
       if (byTsa && multiTsa && nm != "V6_fireRegime")
-        save(fn(tables, facet = "tsa"), file.path(figDir, set, paste0(nm, "_byTSA")))
+        try1(paste0(nm, "_byTSA"), save(fn(tables, facet = "tsa"), file.path(figDir, set, paste0(nm, "_byTSA"))))
     }
   }
   if (!is.null(maps))
-    saveMap(fn = function() mapB9(maps), path = file.path(figDir, "biology", "B9_maps"), types = types)
+    try1("B9_maps", saveMap(fn = function() mapB9(maps), path = file.path(figDir, "biology", "B9_maps"), types = types))
   invisible(figDir)
 }

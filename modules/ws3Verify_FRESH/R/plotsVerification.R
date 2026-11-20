@@ -32,22 +32,25 @@ plotV1Harvest <- function(tables, tsa = NULL, facet = "none") {
 #' V2. Share of last year's burned forest pixels that restarted (age reset) this year.
 plotV2FireReset <- function(tables, tsa = NULL, facet = "none") {
   dt <- selectTsa(tables$checkDT, tsa)
+  title <- "V2. Burned forest restarts after the fire"
   by <- c("year", if (facet == "tsa") "tsa")
-  s <- ratioPerRun(dt, "burnedLastYearReset_n", "burnedLastYear_n", by = by)[!is.na(mean)]
+  s <- ratioPerRun(dt, "burnedReset_n", "burned_n", by = by)[!is.na(mean)]
+  if (!nrow(s)) return(emptyPlot(title, "No burns in ws3's forest: nothing to check."))
+  # the worst single run-year, not a quantile: one failing replicate must show
+  ry <- dt[, .(n = sum(burnedReset_n, na.rm = TRUE), d = sum(burned_n, na.rm = TRUE)), by = .(scenario, rep, year)][d > 0]
+  worst <- min(ry$n / ry$d)
   fd <- tables$fireDT
-  outShare <- if (is.null(fd)) NA_real_ else sum(fd[landBase == "outside forest", burned_ha]) / sum(fd$burned_ha)
-  worst <- if (nrow(s)) min(s$lo, na.rm = TRUE) else NA_real_
+  outShare <- if (is.null(fd) || !nrow(fd)) NA_real_ else sum(fd[landBase == "outside forest", burned_ha]) / sum(fd$burned_ha)
   ggplot2::ggplot(s, ggplot2::aes(year)) +
     ggplot2::geom_hline(yintercept = 1, colour = wsColours[["reference"]], linetype = 2) +
     runLayers(s) + ggplot2::scale_colour_manual(values = wsColours[["fire"]], guide = "none") +
     ggplot2::scale_fill_manual(values = wsColours[["fire"]]) +
     ggplot2::scale_y_continuous(labels = function(x) paste0(round(100 * x), "%"), limits = c(0, NA)) +
     facetLayer(s, facet) +
-    ggplot2::labs(x = "Year", y = "Burned last year, restarted now",
-                  title = "V2. Burned forest restarts the next year",
-                  subtitle = sprintf("Pass: 100%% every year. Lowest: %s. Burns outside ws3's forest (not counted): %s of burned area. %s",
-                                     if (is.na(worst)) "no burns" else paste0(round(100 * worst, 1), "%"),
-                                     if (is.na(outShare)) "n/a" else paste0(round(100 * outShare), "%"), runsNote(dt))) +
+    ggplot2::labs(x = "Year", y = "Burned pixels at age 0 after the reset", title = title,
+                  subtitle = sprintf("Pass: 100%% every year. Lowest run-year: %s%%. Burns outside ws3's forest (not counted): %s of burned area. %s",
+                                     round(100 * worst, 1), if (is.na(outShare)) "n/a" else paste0(round(100 * outShare), "%"),
+                                     runsNote(dt))) +
     wsTheme()
 }
 
@@ -57,8 +60,9 @@ plotV3AgeBalance <- function(tables, tsa = NULL, facet = "none") {
   by <- c("year", if (facet == "tsa") "tsa")
   u <- summariseRuns(sumOverTsa(dt, "unexplainedAgeChange_n", facet = facet), "unexplainedAgeChange_n", by = by)
   u[, panel := "Unexplained age changes (pixels)"]
-  dt[, `:=`(obs = meanAgeChange * pixels, exp = expectedMeanAgeChange * pixels)]
-  m <- sumOverTsa(dt, c("obs", "exp", "pixels"), facet = facet)[, `:=`(Observed = obs / pixels, Expected = exp / pixels)]
+  dt[, cmp := pixels - naChange_n]
+  dt[, `:=`(obs = meanAgeChange * cmp, exp = expectedMeanAgeChange * cmp)]
+  m <- sumOverTsa(dt, c("obs", "exp", "cmp"), facet = facet)[, `:=`(Observed = obs / cmp, Expected = exp / cmp)]
   m <- summariseRuns(m, c("Observed", "Expected"), by = by)[, panel := "Mean age change (years)"]
   s <- rbind(u[, variable := "Unexplained"], m)
   s[, panel := factor(panel, levels = c("Unexplained age changes (pixels)", "Mean age change (years)"))]
@@ -66,7 +70,7 @@ plotV3AgeBalance <- function(tables, tsa = NULL, facet = "none") {
   pal <- c(Unexplained = wsColours[["fire"]], Observed = wsColours[["plan"]], Expected = wsColours[["reference"]])
   ggplot2::ggplot(s, ggplot2::aes(year)) + runLayers(s, dashed = "Expected") +
     ggplot2::scale_colour_manual(values = pal) + ggplot2::scale_fill_manual(values = pal) +
-    (if (facet == "tsa") ggplot2::facet_grid(panel ~ tsa, scales = "free_y") else ggplot2::facet_wrap(~panel, ncol = 1, scales = "free_y")) +
+    facetGrid(s, rows = "panel", facet = facet, scales = "free_y") +
     ggplot2::labs(x = "Year", y = NULL, colour = NULL, title = "V3. Age balance",
                   subtitle = sprintf("Pass: every pixel ages 1 year unless harvest or fire reset it; 0 unexplained. Unexplained, all years and runs: %s. %s",
                                      format(total, big.mark = ","), runsNote(dt))) + wsTheme()
@@ -75,6 +79,7 @@ plotV3AgeBalance <- function(tables, tsa = NULL, facet = "none") {
 #' V4. Age and land base of harvested stands: at plan time (ws3's rule, 100-400, THLB) and at cut.
 plotV4HarvestRule <- function(tables, tsa = NULL, facet = "none", minAge = 100, maxAge = 400) {
   dt <- selectTsa(tables$harvestAgeDT, tsa)
+  if (is.null(dt) || !nrow(dt)) return(emptyPlot("V4. Harvested stands follow ws3's rule", "No harvest: nothing to check."))
   grp <- c("ageRef", "landBase", "ageBin", if (facet == "tsa") "tsa")
   nRuns <- runCount(tables$harvestDT)
   s <- dt[, .(area_ha = sum(area_ha) / nRuns), by = grp]
@@ -95,9 +100,12 @@ plotV4HarvestRule <- function(tables, tsa = NULL, facet = "none", minAge = 100, 
 #' V5. Each plan's period-1 volume vs what was cut (at plan-time age) plus what was skipped.
 plotV5PlanVsCut <- function(tables, tsa = NULL, facet = "none") {
   dt <- selectTsa(tables$planDT, tsa)
-  full <- max(dt$periodYears, na.rm = TRUE)
-  dt <- dt[periodYears == full & !is.na(cutVolPlanAge_m3)]
-  cols <- c("plannedVol_m3", "cutVolPlanAge_m3", "skippedVolPlanAge_m3", "cutVolCutAge_m3")
+  title <- "V5. Planned vs cut volume per planning period"
+  len <- if ("periodLength" %in% names(dt)) dt$periodLength else max(dt$periodYears, na.rm = TRUE)
+  dt <- dt[periodYears >= len & !is.na(cutVolPlanAge_m3)]
+  if (!nrow(dt)) return(emptyPlot(title, "No complete planning period yet: nothing to compare."))
+  if (!"missedUnexplainedVol_m3" %in% names(dt)) dt[, missedUnexplainedVol_m3 := NA_real_]
+  cols <- c("plannedVol_m3", "cutVolPlanAge_m3", "skippedVolPlanAge_m3", "cutVolCutAge_m3", "missedUnexplainedVol_m3")
   sm <- sumOverTsa(dt, cols, facet = facet)
   sm[, cutPlusSkipped := cutVolPlanAge_m3 + skippedVolPlanAge_m3]
   s <- summariseRuns(sm, c("plannedVol_m3", "cutPlusSkipped", "cutVolCutAge_m3"), by = c("year", if (facet == "tsa") "tsa"))
@@ -111,9 +119,12 @@ plotV5PlanVsCut <- function(tables, tsa = NULL, facet = "none") {
     ggplot2::scale_y_continuous(labels = function(x) format(x / 1e6, trim = TRUE)) +
     facetLayer(s, facet) +
     ggplot2::labs(x = "Planning year", y = "Volume (million m3 per period)", colour = NULL,
-                  title = "V5. Planned vs cut volume per planning period",
-                  subtitle = sprintf("Pass: cut + skipped = planned. Largest gap: %s%%. Growth between plan and cut shown, not tested. Complete periods only. %s",
-                                     if (is.na(gapPct)) "n/a" else round(gapPct, 1), runsNote(tables$planDT))) +
+                  title = title,
+                  subtitle = sprintf(paste("Pass: cut + skipped (planned stands that burned since the plan) = planned. Largest gap: %s%%.",
+                                           "Planned stands neither cut nor burned: %s m3. Complete periods only. %s"),
+                                     if (is.na(gapPct)) "n/a" else round(gapPct, 1),
+                                     format(round(sum(sm$missedUnexplainedVol_m3, na.rm = TRUE)), big.mark = ","),
+                                     runsNote(tables$planDT))) +
     wsTheme() + ggplot2::guides(colour = ggplot2::guide_legend(nrow = 2))
 }
 

@@ -63,3 +63,10 @@ test_that("ws3VerifyOutputRows builds outputs() rows from an end time that carri
   expect_equal(rows$fun, c("saveRDS", "writeRaster"))
   expect_equal(rows$saveTime, c(10, 10))
 })
+
+test_that("pixelFrame leaves out cells outside the ws3 inventory (no fmuid), even with an age", {
+  # landrAge may give a burned non-forest cell age 0; it must not join the forest
+  ls <- .landscapeFixture(fmuid = c(41, NA, 41), thlb = c(1, 0, 0), au = 11, age = c(10, 0, 20))
+  pf <- pixelFrame(ls, basenames = list("tsa41"), yields = .yieldFixture())
+  expect_equal(pf$cell, c(1L, 3L))
+})

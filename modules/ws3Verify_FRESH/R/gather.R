@@ -15,7 +15,7 @@
   nms <- unique(unlist(lapply(runs, names)))
   out <- lapply(stats::setNames(nms, nms), function(n)
     data.table::rbindlist(lapply(runs, `[[`, n), use.names = TRUE, fill = TRUE))
-  out[vapply(out, nrow, 1L) > 0]
+  out                                   # empty tables kept, with their columns
 }
 
 .withScfm <- function(tb, scfm) {

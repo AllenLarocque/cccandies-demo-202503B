@@ -55,19 +55,21 @@ pixelVolume <- function(au, age, yields) {
   vol
 }
 
-#' One row per forest pixel (non-NA age) this year: cell, tsa, landBase, au, age, vol_m3ha.
+#' One row per forest pixel (in the inventory, with an age) this year: cell, tsa, landBase, au, age, vol_m3ha.
 #'
 #' @param landscape sim$landscape (layers fmuid, thlb, au, age; categorical layers read by label).
 #' @param basenames TSA basenames of the run.
 #' @param yields    Output of loadYieldCurves().
 pixelFrame <- function(landscape, basenames, yields) {
   age <- layerValues(landscape[["age"]])
-  cell <- which(!is.na(age))
+  fmuid <- layerValues(landscape[["fmuid"]])
+  # the ws3 inventory footprint: landrAge may give burned cells outside it an age
+  cell <- which(!is.na(age) & !is.na(fmuid))
   au <- layerValues(landscape[["au"]])[cell]
   thlb <- layerValues(landscape[["thlb"]])[cell]
   data.table::data.table(
     cell     = as.integer(cell),
-    tsa      = tsaFromFmuid(layerValues(landscape[["fmuid"]])[cell], basenames),
+    tsa      = tsaFromFmuid(fmuid[cell], basenames),
     landBase = ifelse(!is.na(thlb) & thlb > 0, "THLB", "Non-THLB"),
     au       = au,
     age      = age[cell],

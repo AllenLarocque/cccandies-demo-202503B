@@ -104,15 +104,18 @@ defineModule(sim, list(
                   paste("Named list of long data.tables, every row keyed by scenario, rep, tsa (TSA basename;",
                         "NA outside ws3's forest) and year (simulation year).",
                         "ageDT: landBase x 10-year ageBin (400 = 400+): area_ha, vol_m3.",
-                        "checkDT: landBase: pixels, naAge_n, forest_ha, burnedLastYear_n, burnedLastYearReset_n,",
-                        "reset_n, unexplainedAgeChange_n, meanAgeChange, expectedMeanAgeChange.",
+                        "checkDT: landBase: pixels, naAge_n, forest_ha, reset_n, unexplainedAgeChange_n, naChange_n,",
+                        "meanAgeChange, expectedMeanAgeChange, burned_n and burnedReset_n (this year's burned forest",
+                        "pixels, and those at age 0 after landrAge's reset; filled at endOfYear).",
                         "harvestDT: planned_ws3_ha, applied_ws3_ha, skippedBurned_ws3_ha (spades_ws3's",
                         "harvestTimingStats; NA without it), planned_raster_ha, harvested_landscape_ha,",
-                        "plannedNotCut_ha, vol_m3, cutVolPlanAge_m3, skippedVolPlanAge_m3, meanAgeAtCut,",
+                        "plannedNotCut_ha, missedUnexplained_ha, vol_m3, cutVolPlanAge_m3, skippedVolPlanAge_m3",
+                        "(planned stands reset since the plan), missedUnexplainedVol_m3, meanAgeAtCut,",
                         "planRuleViolations_n.",
                         "harvestAgeDT: landBase x ageRef ('plan'/'cut') x ageBin: area_ha.",
                         "planDT (planning years): plannedVol_m3, plannedArea_ha, cutArea_ha, cutVolPlanAge_m3,",
-                        "skippedVolPlanAge_m3, cutVolCutAge_m3 (filled when the period ends), periodYears.",
+                        "skippedVolPlanAge_m3, missedUnexplainedVol_m3, cutVolCutAge_m3 (filled when the period",
+                        "ends), periodYears, periodLength.",
                         "fireDT: landBase ('outside forest' too) x pre-fire ageBin: burned_ha, burnedVol_m3.",
                         "fireEventsDT: one row per fire: PolyID, size_ha (tsa of the ignition cell).")),
     createsOutput("ws3VerifyMaps", "SpatRaster",
@@ -210,7 +213,9 @@ Init <- function(sim) {
   mod$initAge    <- layerValues(sim$landscape[["age"]])
   mod$prevAge    <- mod$initAge        # end-of-previous-year age; at the start, the age ws3 starts from
   mod$planAge    <- NULL               # age when the current plan was made
-  mod$burnedLast <- integer(0)
+  mod$burnedForest <- NULL             # this year's burned forest cells (cell, tsa, landBase), for V2
+  mod$planYear <- start(sim)
+  mod$cutThisPeriod <- integer(0)
   nCell <- terra::ncell(sim$landscape)
   mod$burnCount    <- integer(nCell)
   mod$harvestCount <- integer(nCell)
@@ -348,16 +353,23 @@ CollectTables <- function(sim) {
 
   pf <- pixelFrame(sim$landscape, basenames, mod$yields)
   # the plan made this year (spades_ws3 harvest, priority 5) used the ages at the end of last year
-  if (planningYear) mod$planAge <- mod$prevAge
-  cut <- harvestedCells(pf, mod$prevAge)
+  if (planningYear) {
+    mod$planAge <- mod$prevAge
+    mod$planYear <- t
+    mod$cutThisPeriod <- integer(0)
+  }
+  cut <- harvestedCells(pf, mod$prevAge, P(sim)$resetAgeMax)
   burned <- which(terra::values(sim$rstCurrentBurn)[, 1] > 0)
+  mod$burnedForest <- pf[cell %in% burned, .(cell, tsa, landBase)]
 
   add("ageDT", tabulateAge(pf, resInHA))
-  add("checkDT", checkAges(pf, if (t == start(sim)) NULL else mod$prevAge, mod$burnedLast, resInHA,
-                           P(sim)$resetAgeMax, naAgeCounts(sim$landscape, basenames)))
+  # in the start year prevAge is the age at Init: spades_ws3 harvests, then grows, in year 0 too
+  add("checkDT", checkAges(pf, mod$prevAge, resInHA, P(sim)$resetAgeMax, naAgeCounts(sim$landscape, basenames)))
   planned <- plannedHarvestCells(tifDir, basenames, yearCal, sim$landscape)
   add("harvestDT", tabulateHarvest(pf, cut, mod$planAge, mod$prevAge, planned, sim$harvestTimingStats,
-                                   yearCal, resInHA, mod$yields))
+                                   yearCal, resInHA, mod$yields, elapsed = t - mod$planYear,
+                                   cutEarlier = mod$cutThisPeriod))
+  mod$cutThisPeriod <- c(mod$cutThisPeriod, cut)
   add("harvestAgeDT", tabulateHarvestAge(pf, cut, mod$planAge, mod$prevAge, resInHA))
   add("fireDT", tabulateFire(pf, burned, resInHA))
   cellTsa <- rep(NA_character_, terra::ncell(sim$landscape)); cellTsa[pf$cell] <- pf$tsa
@@ -367,7 +379,7 @@ CollectTables <- function(sim) {
   if (planningYear && !is.null(sim$fm)) {
     if (!is.null(tb$planDT) && nrow(tb$planDT))
       tb$planDT <- closePlanPeriod(tb$planDT, tb$harvestDT, t - planFreq, planFreq)
-    add("planDT", planRow(sim$fm, basenames)[, periodYears := NA_integer_])
+    add("planDT", planRow(sim$fm, basenames)[, `:=`(periodYears = NA_integer_, periodLength = as.integer(planFreq))])
   }
   if (t == end(sim) && !is.null(tb$planDT) && nrow(tb$planDT)) {
     last <- max(tb$planDT$year)
@@ -407,9 +419,20 @@ MultiPlots <- function(sim) {
 
 #' After this year's burn resets (landrAge, priority 9): snapshot ages for next year's checks.
 EndOfYear <- function(sim) {
+  source(file.path(moduleSourceDir(sim), "R", "tablesAge.R"))
   mod$prevAge <- layerValues(sim$landscape[["age"]])
-  burned <- which(terra::values(sim$rstCurrentBurn)[, 1] > 0)
-  mod$burnedLast <- burned[!is.na(mod$prevAge[burned])]
+  # V2: this year's burned forest cells (taken at collectStats) should now be at age 0
+  tb <- sim$ws3VerifyTables
+  if (!is.null(tb$checkDT) && !is.null(mod$burnedForest)) {
+    t <- as.integer(time(sim))
+    fr <- fireResetCounts(mod$burnedForest, mod$prevAge)
+    tb$checkDT[year == t, `:=`(burned_n = 0L, burnedReset_n = 0L)]
+    if (nrow(fr)) {
+      fr[, year := t]
+      tb$checkDT[fr, `:=`(burned_n = i.burned_n, burnedReset_n = i.burnedReset_n), on = c("tsa", "landBase", "year")]
+    }
+    sim$ws3VerifyTables <- tb
+  }
   return(invisible(sim))
 }
 
