@@ -135,6 +135,9 @@ doEvent.ws3Verify_FRESH <- function(sim, eventTime, eventType) {
         return(invisible(sim))
       }
       sim <- Init(sim)
+      # Init adds ws3VerifyTables/ws3VerifyMaps to outputs(), after the core save module's init has
+      # scheduled its saves; ask it to save again at the end so they are written too
+      sim <- scheduleEvent(sim, end(sim), "save", "later", .last())
       # From the start year, so fires of the first year are counted. eventPriority 8: after scfmSpread "burn" (7.5), so this year's fires are in
       # burnSummary and rstCurrentBurn when stats are collected.
       sim <- scheduleEvent(sim, time(sim), "ws3Verify_FRESH", "collectStats",

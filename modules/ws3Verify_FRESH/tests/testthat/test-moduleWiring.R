@@ -43,3 +43,14 @@ test_that("mode = 'multi' gathers saved runs and draws the figure sets instead o
   expect_match(mp, "gatherWs3VerifyMaps")
   expect_match(mp, "writeFigureSets")
 })
+
+test_that("init schedules the save module's 'later' event at the end, so outputs added in Init are saved", {
+  # Regression: the core save module schedules saves only for outputs() rows that exist at its own
+  # init, before this module's Init adds ws3VerifyTables/ws3VerifyMaps, so they were never written.
+  ev <- paste(deparse(body(local({
+    for (e in parse(moduleFile, keep.source = FALSE))
+      if (is.call(e) && identical(e[[1]], as.name("<-")) && identical(e[[2]], as.name("doEvent.ws3Verify_FRESH")))
+        return(eval(e[[3]]))
+  }))), collapse = "\n")
+  expect_match(ev, 'scheduleEvent\\(sim, end\\(sim\\), "save", "later"')
+})
