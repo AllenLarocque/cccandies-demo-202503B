@@ -46,8 +46,8 @@ pythonPath = NA  # NA: spades_ws3_dataInit installs Python 3.12 itself
 
 modules = c(
   "AllenLarocque/spades_ws3_dataInit@7809a24a53562d3f06b2e6638fd297cb6bed030d", # = feature/ws3-fresh-container-run; pinned by SHA, keep equal to the modules/spades_ws3_dataInit gitlink
-  "AllenLarocque/spades_ws3@c6e9715deee085d2daf9b78e79897f378716029f", # = feature/ws3-fresh-integration: sync landscape ages + horizon fix + harvestTiming; keep equal to the modules/spades_ws3 gitlink
-  "AllenLarocque/spades_ws3_landrAge@d12a691898b1ded0d146904fdf63d785e9551909", # = fix/adjustBurnedPixels-priority (on PE); keep equal to the modules/spades_ws3_landrAge gitlink
+  "AllenLarocque/spades_ws3@c04edde6d8772a753a1934094c750dc013f53a14", # = feature/ws3-fresh-integration: age-reset sync + horizon fix + harvestTiming (fork PRs #1-#3); keep equal to the modules/spades_ws3 gitlink
+  "AllenLarocque/spades_ws3_landrAge@af6453c810e801d05483cfb323e7f31c6d5bb7ce", # = feature/ws3-fresh-integration: burn-reset priority + applied harvest (fork PRs #2, #3; on PE); keep equal to the modules/spades_ws3_landrAge gitlink
   "AllenLarocque/scfm@9213cb43a4a0a79d7874a8e0dab568ee5c4110b3", # = feature/fireMultiplier (on development); keep equal to the modules/scfm gitlink
   "ws3Verify_FRESH"                               # Local module for verification plots
   #"AllenLarocque/spades_ws3_diag_FRESH@main",        # This module contains diagnostic plots for the WS3_FRESH module
