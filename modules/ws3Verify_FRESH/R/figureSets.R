@@ -1,0 +1,58 @@
+# figureSets.R
+# Writes the verification (V1-V7) and biological (B1-B9) figure sets from ws3VerifyTables.
+
+#' Figure specs: file name -> function(tables) returning a ggplot / patchwork.
+figureSpecs <- function(oldForestAges = c(140, 250), harvestAgeTolerance = 0) {
+  list(
+    verification = list(
+      V1_harvest = plotV1Harvest, V2_fireReset = plotV2FireReset, V3_ageBalance = plotV3AgeBalance,
+      V4_harvestRule = function(tables, ...) plotV4HarvestRule(tables, tolerance = harvestAgeTolerance, ...),
+      V5_planVsCut = plotV5PlanVsCut, V6_fireRegime = plotV6FireRegime,
+      V7_conservation = plotV7Conservation),
+    biology = list(
+      B1_ageStructure = plotB1AgeStructure, B2_growingStock = plotB2GrowingStock, B3_woodSupply = plotB3WoodSupply,
+      B4_oldForest = function(tables, ...) plotB4OldForest(tables, thresholds = oldForestAges, ...),
+      B5_fire = plotB5Fire, B6_fireSelectivity = plotB6FireSelectivity, B7_disturbanceMix = plotB7DisturbanceMix,
+      B8_burnedVolume = plotB8BurnedVolume))
+}
+
+#' Wrap a long subtitle (and a patchwork's annotation subtitle) so square SpaDES Plots() images
+#' do not clip it.
+wrapSubtitle <- function(p, width = 95) {
+  wrap <- function(x) if (is.character(x) && length(x) == 1 && nchar(x) > width)
+    paste(strwrap(x, width = width), collapse = "\n") else x
+  if (!is.null(p$labels$subtitle)) p$labels$subtitle <- wrap(p$labels$subtitle)
+  if (inherits(p, "patchwork") && !is.null(p$patches$annotation$subtitle))
+    p$patches$annotation$subtitle <- wrap(p$patches$annotation$subtitle)
+  p
+}
+
+#' Write both figure sets under figDir/verification and figDir/biology.
+#'
+#' @param tables ws3VerifyTables (one run or several stacked).
+#' @param maps   One run's ws3VerifyMaps, a list of several runs' maps, or NULL (no B9).
+#' @param save   function(plot, fileWithoutExtension): SpaDES.core::Plots by default.
+#' @param byTsa  Also write "<name>_byTSA" versions faceted by TSA (when there are several TSAs).
+writeFigureSets <- function(tables, maps, figDir, types = "png", oldForestAges = c(140, 250),
+                            save = function(p, file) SpaDES.core::Plots(data = p, types = types, filename = file),
+                            byTsa = FALSE, harvestAgeTolerance = 0,
+                            specs = figureSpecs(oldForestAges, harvestAgeTolerance)) {
+  hasScfm <- !is.null(tables$scfmSummaryDT) && nrow(tables$scfmSummaryDT) > 0
+  multiTsa <- data.table::uniqueN(stats::na.omit(tables$ageDT$tsa)) > 1
+  # a figure that fails is reported and skipped: it must never stop the run before outputs are saved
+  try1 <- function(nm, expr) tryCatch(expr, error = function(e)
+    warning("ws3Verify_FRESH: figure ", nm, " failed: ", conditionMessage(e), call. = FALSE))
+  for (set in names(specs)) {
+    dir.create(file.path(figDir, set), showWarnings = FALSE, recursive = TRUE)
+    for (nm in names(specs[[set]])) {
+      if (nm == "V6_fireRegime" && !hasScfm) next
+      fn <- specs[[set]][[nm]]
+      try1(nm, save(wrapSubtitle(fn(tables)), file.path(figDir, set, nm)))
+      if (byTsa && multiTsa && nm != "V6_fireRegime")
+        try1(paste0(nm, "_byTSA"), save(wrapSubtitle(fn(tables, facet = "tsa")), file.path(figDir, set, paste0(nm, "_byTSA"))))
+    }
+  }
+  if (!is.null(maps))
+    try1("B9_maps", saveMap(fn = function() mapB9(maps), path = file.path(figDir, "biology", "B9_maps"), types = types))
+  invisible(figDir)
+}

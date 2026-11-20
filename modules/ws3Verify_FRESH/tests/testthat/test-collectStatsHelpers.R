@@ -3,6 +3,7 @@ library(data.table)
 library(terra)
 
 source(test_path("..", "..", "R", "collectStatsHelpers.R"))
+source(test_path("..", "..", "R", "tablesCore.R"))
 
 test_that("initAnnualDT returns empty data.table with correct columns", {
   dt <- initAnnualDT()
