@@ -54,3 +54,12 @@ test_that("addKeys prepends scenario, rep and year", {
   expect_identical(out$year, 5L)
   expect_identical(out$rep, 2L)
 })
+
+test_that("ws3VerifyOutputRows builds outputs() rows from an end time that carries a unit", {
+  endTime <- structure(10, unit = "year")
+  rows <- ws3VerifyOutputRows(endTime)
+  expect_equal(nrow(rows), 2)
+  expect_equal(rows$file, c("ws3VerifyTables.rds", "ws3VerifyMaps.tif"))
+  expect_equal(rows$fun, c("saveRDS", "writeRaster"))
+  expect_equal(rows$saveTime, c(10, 10))
+})

@@ -22,7 +22,7 @@ test_that("Init registers the tables and maps with outputs() by basename, keepin
   init <- fnText("Init")
   expect_match(init, "outputs\\(sim\\)")
   expect_match(init, "ws3VerifyTables")
-  expect_match(init, "ws3VerifyMaps.tif")
+  expect_match(init, "ws3VerifyOutputRows")
   expect_match(init, "rbindlist")
 })
 

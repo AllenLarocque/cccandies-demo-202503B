@@ -210,10 +210,7 @@ Init <- function(sim) {
   # (after simInit) moves them into each run's folder. outputs<- replaces, so keep earlier rows.
   outputs(sim) <- data.table::rbindlist(list(
     outputs(sim),
-    data.frame(objectName = c("ws3VerifyTables", "ws3VerifyMaps"),
-               file = c("ws3VerifyTables.rds", "ws3VerifyMaps.tif"),
-               fun = c("saveRDS", "writeRaster"), package = c("base", "terra"),
-               saveTime = end(sim), stringsAsFactors = FALSE)
+    ws3VerifyOutputRows(end(sim))
   ), fill = TRUE)
 
   # Initialize cumulative harvest map (zeros, matching rasterToMatch)

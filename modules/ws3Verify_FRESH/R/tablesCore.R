@@ -83,3 +83,12 @@ addKeys <- function(dt, keys, year) {
   data.table::setcolorder(dt, c(front, setdiff(names(dt), front)))
   dt[]
 }
+
+#' outputs() rows that save ws3VerifyTables and ws3VerifyMaps at the end of the run, by basename.
+#' @param endTime end(sim) (may carry a unit attribute).
+ws3VerifyOutputRows <- function(endTime) {
+  data.frame(objectName = c("ws3VerifyTables", "ws3VerifyMaps"),
+             file = c("ws3VerifyTables.rds", "ws3VerifyMaps.tif"),
+             fun = c("saveRDS", "writeRaster"), package = c("base", "terra"),
+             saveTime = rep(as.numeric(endTime), 2), stringsAsFactors = FALSE)
+}
