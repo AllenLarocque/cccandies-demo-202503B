@@ -252,3 +252,41 @@ queryFmStats <- function(fm, harvestPeriod = 1L, stockPeriod = 0L) {
     growingStock = as.numeric(growingStock)
   )
 }
+
+#' Age-class edges for ws3VerifyAgeClassDT: [0,50), [50,100), [100,200), [200,300), 300+.
+#' 100 is ws3's default minimum harvest age (spadesws3_params.py oe_harvest).
+ageClassBreaks <- c(0, 50, 100, 200, 300, Inf)
+
+ageClassLabels <- function(breaks = ageClassBreaks) {
+  lo <- head(breaks, -1); hi <- tail(breaks, -1)
+  ifelse(is.finite(hi), paste0(lo, "-", hi - 1), paste0(lo, "+"))
+}
+
+initAgeClassDT <- function() {
+  data.table::data.table(year = integer(), landBase = character(),
+                         ageClass = character(), area_ha = numeric())
+}
+
+#' Forested area by age class, split into the timber harvesting land base (THLB) and the rest.
+#'
+#' ws3 only cuts THLB stands, so this shows whether old forest builds up where harvest can
+#' reach it or only where fire can. Every land base x age class combination gets a row
+#' (zero area included), so stacked plots have no gaps.
+#'
+#' @param age,thlb SpatRasters: the landscape "age" and "thlb" layers (thlb > 0 = THLB;
+#'   categorical layers are read by their labels).
+#' @param year     Simulation year for the rows.
+#' @param resInHA  Numeric. Pixel area in hectares.
+#' @param breaks   Age-class edges, left-closed.
+#' @return data.table: year, landBase ("THLB", "Non-THLB"), ageClass, area_ha.
+tabulateAgeByLandBase <- function(age, thlb, year, resInHA, breaks = ageClassBreaks) {
+  a  <- layerValues(age)
+  th <- layerValues(thlb)
+  ok <- !is.na(a) & !is.na(th)
+  labs <- ageClassLabels(breaks)
+  cls <- cut(a[ok], breaks, right = FALSE, labels = labs)
+  lb  <- factor(ifelse(th[ok] > 0, "THLB", "Non-THLB"), levels = c("THLB", "Non-THLB"))
+  tab <- data.table::as.data.table(table(landBase = lb, ageClass = cls))
+  tab[, .(year = as.integer(year), landBase = as.character(landBase),
+          ageClass = as.character(ageClass), area_ha = N * resInHA)]
+}

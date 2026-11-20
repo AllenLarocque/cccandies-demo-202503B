@@ -140,3 +140,37 @@ saveMap <- function(fn, path, types = "png") {
   }
   invisible(NULL)
 }
+
+# ---------------------------------------------------------------------------
+# Age structure by land base
+# ---------------------------------------------------------------------------
+
+#' Share of each land base's forest by age class over time: THLB vs non-THLB, stacked areas.
+#'
+#' One-hue ordinal ramp, young (light) to old (dark), validated for colour-vision deficiency.
+#' The facet titles carry each land base's area.
+plotAgeByLandBase <- function(dt) {
+  d <- data.table::copy(dt)
+  labs <- unique(d$ageClass)
+  labs <- labs[order(as.numeric(sub("[-+].*", "", labs)))]
+  d[, ageClass := factor(ageClass, levels = rev(labs))]
+  d[, share := area_ha / sum(area_ha), by = .(year, landBase)]
+  tot <- d[year == min(year), .(Mha = sum(area_ha) / 1e6), by = landBase]
+  facetLab <- stats::setNames(sprintf("%s (%.2f Mha)", tot$landBase, tot$Mha), tot$landBase)
+  d[, landBase := factor(facetLab[landBase], levels = facetLab[intersect(c("THLB", "Non-THLB"), names(facetLab))])]
+  ramp <- c("#86b6ef", "#3987e5", "#256abf", "#184f95", "#0d366b")
+  ramp <- grDevices::colorRampPalette(ramp)(length(labs))
+  ggplot2::ggplot(d, ggplot2::aes(x = year, y = share, fill = ageClass)) +
+    ggplot2::geom_area(colour = "white", linewidth = 0.2) +
+    ggplot2::facet_wrap(~landBase, nrow = 1) +
+    ggplot2::scale_fill_manual(values = stats::setNames(rev(ramp), rev(labs)), breaks = labs) +
+    ggplot2::scale_y_continuous(labels = function(x) paste0(round(100 * x), "%"), expand = c(0, 0)) +
+    ggplot2::scale_x_continuous(expand = c(0, 0)) +
+    ggplot2::labs(x = "Year", y = "Share of land base", fill = "Stand age (years)",
+                  title = "Age structure by land base",
+                  subtitle = "ws3 harvests only the timber harvesting land base (THLB); elsewhere only fire resets age") +
+    ggplot2::theme_minimal(base_size = 12) +
+    ggplot2::theme(panel.grid.minor = ggplot2::element_blank(), panel.spacing.x = ggplot2::unit(2, "lines"),
+                   plot.margin = ggplot2::margin(5.5, 16, 5.5, 5.5),
+                   legend.position = "bottom", plot.title.position = "plot")
+}
