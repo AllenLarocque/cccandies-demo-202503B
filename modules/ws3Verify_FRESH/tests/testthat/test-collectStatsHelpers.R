@@ -243,3 +243,37 @@ test_that("CollectStats queries the fm without a period counted from the simulat
   expect_false(grepl("queryFmStats\\(fm = sim\\$fm, period", src))
   expect_match(src, "queryFmStats\\(fm = sim\\$fm\\)")
 })
+
+test_that("calendarYear converts simulation time to the calendar year spades_ws3 uses", {
+  expect_identical(calendarYear(0, 0, 2020), 2020L)
+  expect_identical(calendarYear(37, 0, 2020), 2057L)
+  expect_identical(calendarYear(2011, 2011, 2015), 2015L)
+  expect_error(calendarYear(1, 0, NULL), "base.year")
+})
+
+test_that("CollectStats looks up the planned-harvest raster by calendar year", {
+  # Regression: it passed time(sim), so it looked for projected_harvest_0.tif and never found one
+  src <- paste(readLines(test_path("..", "..", "ws3Verify_FRESH.R")), collapse = "\n")
+  expect_match(src, "year += calendarYear\\(t, start\\(sim\\), baseYear\\)")
+  expect_match(src, "baseYear <- params\\(sim\\)\\$spades_ws3\\$base\\.year")
+  expect_false(grepl("year += t,\\s*\\n\\s*rstCurrentBurn", src))
+})
+
+test_that("computeMissedHarvest finds the calendar-year file spades_ws3 writes", {
+  tifDir <- withr::local_tempdir()
+  dir.create(file.path(tifDir, "tsaX"))
+  r <- terra::rast(nrows = 2, ncols = 2, vals = c(1, 1, NA, NA))
+  terra::writeRaster(r, file.path(tifDir, "tsaX", "projected_harvest_2025.tif"))
+  burn <- terra::rast(r); terra::values(burn) <- c(1, 0, 0, 0)
+  res <- computeMissedHarvest("tsaX", tifDir, calendarYear(5, 0, 2020), burn, resInHA = 6.25)
+  expect_equal(res$planned, 2 * 6.25)
+  expect_equal(res$missed, 6.25)
+})
+
+test_that("missedFromTimingStats sums planned and skipped pixels over units for the year", {
+  ts <- data.table::data.table(year = c(2025, 2025, 2026), basename = c("a", "b", "a"),
+                               plannedPixels = c(10, 6, 9), appliedPixels = c(9, 6, 9),
+                               skippedResetPixels = c(1, 0, 0))
+  expect_equal(missedFromTimingStats(ts, 2025, 6.25), list(planned = 16 * 6.25, missed = 6.25))
+  expect_equal(missedFromTimingStats(ts, 2030, 6.25), list(planned = NA_real_, missed = NA_real_))
+})

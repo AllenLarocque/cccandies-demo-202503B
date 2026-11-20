@@ -157,6 +157,33 @@ computeBurnVolume <- function(rstCurrentBurn, au, age, yields, resInHA) {
 # Missed harvest
 # ---------------------------------------------------------------------------
 
+#' Calendar year of a simulation time, as spades_ws3 uses it in file names
+#' (inventory_<year>.tif, projected_harvest_<year>.tif).
+#'
+#' @param t         Simulation time (time(sim)).
+#' @param start     Simulation start (start(sim)).
+#' @param baseYear  Calendar year of the simulation start (the base.year global).
+#' @return Integer calendar year.
+calendarYear <- function(t, start, baseYear) {
+  if (is.null(baseYear) || length(baseYear) != 1 || is.na(baseYear))
+    stop("calendarYear(): base.year must be a single year")
+  as.integer(baseYear + t - start)
+}
+
+#' Planned and missed (skipped) harvest from spades_ws3's harvestTimingStats.
+#'
+#' @param timingStats data.table with columns year, plannedPixels, skippedResetPixels
+#'                    (one row per year and management unit).
+#' @param year        Calendar year.
+#' @param resInHA     Pixel area in hectares.
+#' @return Named list: planned (ha), missed (ha). Both NA if the year has no rows.
+missedFromTimingStats <- function(timingStats, year, resInHA) {
+  idx <- which(timingStats[["year"]] == year)   # outside [ ]: data.table would read `year` as the column
+  if (length(idx) == 0) return(list(planned = NA_real_, missed = NA_real_))
+  list(planned = sum(timingStats[["plannedPixels"]][idx]) * resInHA,
+       missed  = sum(timingStats[["skippedResetPixels"]][idx]) * resInHA)
+}
+
 #' Compute planned harvest area and how much of it burned before harvest.
 #'
 #' Reads the projected_harvest_<year>.tif written by the spades_ws3 Python layer
@@ -165,7 +192,7 @@ computeBurnVolume <- function(rstCurrentBurn, au, age, yields, resInHA) {
 #' @param basenames      Character vector of TSA basenames (e.g. c("tsa40","tsa41")).
 #' @param tifDir         Path to the tif directory (inputPath(sim)/tif.path).
 #'                       Each basename has a subdirectory: tifDir/<basename>/.
-#' @param year           Numeric. Simulation year (used to build file name).
+#' @param year           Numeric. Calendar year, as in the file name (see calendarYear()).
 #' @param rstCurrentBurn SpatRaster. Values > 0 indicate pixels that burned this year.
 #' @param resInHA        Numeric. Pixel area in hectares.
 #' @return Named list: planned (ha), missed (ha). Both NA if no tif found.
