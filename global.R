@@ -42,6 +42,8 @@ n_ws3_workers=10L
 fireMultiplier = 1.5
 harvestTiming = "annual"  # spades_ws3: apply each year's planned harvest in that year ("period" = whole decade in the planning year)
 targetN = 2000            # scfmDataPrep fire-regime calibration sample size (1000 is a quick test value)
+verifyScenario = "default" # ws3Verify_FRESH: scenario label on every ws3VerifyTables row (no "_"; SpaDES.experiment runs set it from their folder name)
+verifyRep = 1L            # ws3Verify_FRESH: replicate number on every ws3VerifyTables row
 pythonPath = NA  # NA: spades_ws3_dataInit installs Python 3.12 itself
 
 modules = c(
@@ -189,7 +191,9 @@ simin$modules <- c(simin$modules, localModules)
 simin$params$ws3Verify_FRESH <- list(
   .plots  = "png",
   resInHA = NA,        # NA = auto-calculate from rasterToMatch
-  burnedBiomass = FALSE  # no LandR biomass here: cohortData is spades_ws3_landrAge's placeholder
+  burnedBiomass = FALSE,  # no LandR biomass here: cohortData is spades_ws3_landrAge's placeholder
+  scenario = verifyScenario,
+  rep = verifyRep
 )
 
 
