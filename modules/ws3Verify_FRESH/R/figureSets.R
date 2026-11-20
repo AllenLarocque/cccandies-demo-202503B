@@ -2,11 +2,12 @@
 # Writes the verification (V1-V7) and biological (B1-B9) figure sets from ws3VerifyTables.
 
 #' Figure specs: file name -> function(tables) returning a ggplot / patchwork.
-figureSpecs <- function(oldForestAges = c(140, 250)) {
+figureSpecs <- function(oldForestAges = c(140, 250), harvestAgeTolerance = 0) {
   list(
     verification = list(
       V1_harvest = plotV1Harvest, V2_fireReset = plotV2FireReset, V3_ageBalance = plotV3AgeBalance,
-      V4_harvestRule = plotV4HarvestRule, V5_planVsCut = plotV5PlanVsCut, V6_fireRegime = plotV6FireRegime,
+      V4_harvestRule = function(tables, ...) plotV4HarvestRule(tables, tolerance = harvestAgeTolerance, ...),
+      V5_planVsCut = plotV5PlanVsCut, V6_fireRegime = plotV6FireRegime,
       V7_conservation = plotV7Conservation),
     biology = list(
       B1_ageStructure = plotB1AgeStructure, B2_growingStock = plotB2GrowingStock, B3_woodSupply = plotB3WoodSupply,
@@ -34,7 +35,8 @@ wrapSubtitle <- function(p, width = 95) {
 #' @param byTsa  Also write "<name>_byTSA" versions faceted by TSA (when there are several TSAs).
 writeFigureSets <- function(tables, maps, figDir, types = "png", oldForestAges = c(140, 250),
                             save = function(p, file) SpaDES.core::Plots(data = p, types = types, filename = file),
-                            byTsa = FALSE, specs = figureSpecs(oldForestAges)) {
+                            byTsa = FALSE, harvestAgeTolerance = 0,
+                            specs = figureSpecs(oldForestAges, harvestAgeTolerance)) {
   hasScfm <- !is.null(tables$scfmSummaryDT) && nrow(tables$scfmSummaryDT) > 0
   multiTsa <- data.table::uniqueN(stats::na.omit(tables$ageDT$tsa)) > 1
   # a figure that fails is reported and skipped: it must never stop the run before outputs are saved

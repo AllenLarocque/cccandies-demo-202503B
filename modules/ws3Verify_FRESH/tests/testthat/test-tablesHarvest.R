@@ -151,3 +151,18 @@ test_that("period mode: planned cells already cut earlier in the period are neit
   expect_equal(out$missedUnexplained_ha, 0)
   expect_equal(out$plannedNotCut_ha, 0)
 })
+
+test_that("stands within ws3's allocation tolerance of the age limits are tolerated, not violations", {
+  # ws3's spatial allocation matches pixels within one period of the planned age (spatial.py,
+  # ForestRaster._transition_cells: age_tolerance = period_length)
+  pf <- .pf(age = c(1, 1, 1, 1, 1))
+  out <- tabulateHarvest(pf, cut = 1:5, planAge = c(95, 89, 405, 411, 150), prevAge = c(96, 90, 406, 412, 151),
+                         plannedCells = 1:5, timing = NULL, yearCal = 2021L, resInHA = 1,
+                         yields = .yieldFixture(), ageTolerance = 10)
+  expect_equal(out$planRuleTolerated_n, 2L)     # 95 and 405
+  expect_equal(out$planRuleViolations_n, 2L)    # 89 and 411
+  strict <- tabulateHarvest(pf, cut = 1:5, planAge = c(95, 89, 405, 411, 150), prevAge = c(96, 90, 406, 412, 151),
+                            plannedCells = 1:5, timing = NULL, yearCal = 2021L, resInHA = 1, yields = .yieldFixture())
+  expect_equal(strict$planRuleViolations_n, 4L) # default tolerance 0: the strict rule
+  expect_equal(strict$planRuleTolerated_n, 0L)
+})
