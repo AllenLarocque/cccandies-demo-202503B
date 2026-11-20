@@ -30,3 +30,12 @@ test_that("writeFigureSets with facet = 'tsa' adds per-TSA versions alongside", 
   expect_true("V1_harvest_byTSA.png" %in% list.files(file.path(d, "verification")))
   expect_true("B1_ageStructure_byTSA.png" %in% list.files(file.path(d, "biology")))
 })
+
+test_that("long subtitles are wrapped so square SpaDES Plots() images do not clip them", {
+  p <- ggplot2::ggplot() + ggplot2::labs(subtitle = paste(rep("word", 60), collapse = " "))
+  w <- wrapSubtitle(p, width = 90)
+  expect_true(grepl("\n", w$labels$subtitle))
+  expect_true(all(nchar(strsplit(w$labels$subtitle, "\n")[[1]]) <= 90))
+  short <- ggplot2::ggplot() + ggplot2::labs(subtitle = "short")
+  expect_identical(wrapSubtitle(short)$labels$subtitle, "short")
+})

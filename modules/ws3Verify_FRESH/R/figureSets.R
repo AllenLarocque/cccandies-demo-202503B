@@ -15,6 +15,17 @@ figureSpecs <- function(oldForestAges = c(140, 250)) {
       B8_burnedVolume = plotB8BurnedVolume))
 }
 
+#' Wrap a long subtitle (and a patchwork's annotation subtitle) so square SpaDES Plots() images
+#' do not clip it.
+wrapSubtitle <- function(p, width = 95) {
+  wrap <- function(x) if (is.character(x) && length(x) == 1 && nchar(x) > width)
+    paste(strwrap(x, width = width), collapse = "\n") else x
+  if (!is.null(p$labels$subtitle)) p$labels$subtitle <- wrap(p$labels$subtitle)
+  if (inherits(p, "patchwork") && !is.null(p$patches$annotation$subtitle))
+    p$patches$annotation$subtitle <- wrap(p$patches$annotation$subtitle)
+  p
+}
+
 #' Write both figure sets under figDir/verification and figDir/biology.
 #'
 #' @param tables ws3VerifyTables (one run or several stacked).
@@ -34,9 +45,9 @@ writeFigureSets <- function(tables, maps, figDir, types = "png", oldForestAges =
     for (nm in names(specs[[set]])) {
       if (nm == "V6_fireRegime" && !hasScfm) next
       fn <- specs[[set]][[nm]]
-      try1(nm, save(fn(tables), file.path(figDir, set, nm)))
+      try1(nm, save(wrapSubtitle(fn(tables)), file.path(figDir, set, nm)))
       if (byTsa && multiTsa && nm != "V6_fireRegime")
-        try1(paste0(nm, "_byTSA"), save(fn(tables, facet = "tsa"), file.path(figDir, set, paste0(nm, "_byTSA"))))
+        try1(paste0(nm, "_byTSA"), save(wrapSubtitle(fn(tables, facet = "tsa")), file.path(figDir, set, paste0(nm, "_byTSA"))))
     }
   }
   if (!is.null(maps))
