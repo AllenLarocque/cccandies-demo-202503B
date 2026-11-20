@@ -80,6 +80,10 @@ defineModule(sim, list(
     createsOutput("ws3MissedHarvestDT", "data.table",
                   paste("Annual planned vs actual harvest. Columns: year,",
                         "plannedHarvestArea_ha, actualHarvestArea_ha, missedDueToFire_ha.")),
+    createsOutput("ws3VerifyAgeClassDT", "data.table",
+                  paste("Annual forested area by age class and land base. Columns: year, landBase",
+                        "(\"THLB\" = timber harvesting land base, landscape thlb > 0; \"Non-THLB\"),",
+                        "ageClass (0-49, 50-99, 100-199, 200-299, 300+), area_ha.")),
     createsOutput("cumulativeHarvestMap", "SpatRaster",
                   "Pixel-level count of harvest events accumulated over the simulation."),
     createsOutput("ageAtStart", "SpatRaster",
@@ -146,6 +150,7 @@ Init <- function(sim) {
   # Initialize output data.tables
   sim$ws3VerifyAnnualDT  <- initAnnualDT()
   sim$ws3MissedHarvestDT <- initMissedHarvestDT()
+  sim$ws3VerifyAgeClassDT <- initAgeClassDT()
 
   # Initialize cumulative harvest map (zeros, matching rasterToMatch)
   sim$cumulativeHarvestMap <- terra::rast(sim$rasterToMatch)
@@ -233,7 +238,13 @@ CollectStats <- function(sim) {
     missedDueToFire_ha    = missed$missed
   )
 
-  # 6. Increment cumulative harvest map
+  # 6. Forested area by age class, THLB vs the rest (ages after this year's harvest and burn resets)
+  sim$ws3VerifyAgeClassDT <- rbind(
+    sim$ws3VerifyAgeClassDT,
+    tabulateAgeByLandBase(sim$landscape[["age"]], sim$landscape[["thlb"]], year = t, resInHA = resInHA)
+  )
+
+  # 7. Increment cumulative harvest map
   harvestRst <- sim$rstCurrentHarvest
   harvestRst[is.na(terra::values(harvestRst))] <- 0
   sim$cumulativeHarvestMap <- sim$cumulativeHarvestMap + harvestRst
@@ -269,6 +280,10 @@ MakePlots <- function(sim) {
   }
   SpaDES.core::Plots(data = plotMissedHarvest(missedDT), types = plotTypes,
                      filename = file.path(figDir, "fig_missedHarvest"))
+  if (!is.null(sim$ws3VerifyAgeClassDT) && nrow(sim$ws3VerifyAgeClassDT) > 0) {
+    SpaDES.core::Plots(data = plotAgeByLandBase(sim$ws3VerifyAgeClassDT), types = plotTypes,
+                       filename = file.path(figDir, "fig_ageByLandBase"))
+  }
 
   # Maps
   mapDir <- file.path(figDir, "maps")

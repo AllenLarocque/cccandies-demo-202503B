@@ -277,3 +277,33 @@ test_that("missedFromTimingStats sums planned and skipped pixels over units for 
   expect_equal(missedFromTimingStats(ts, 2025, 6.25), list(planned = 16 * 6.25, missed = 6.25))
   expect_equal(missedFromTimingStats(ts, 2030, 6.25), list(planned = NA_real_, missed = NA_real_))
 })
+
+test_that("tabulateAgeByLandBase splits area by THLB and age class, with zero rows", {
+  age  <- terra::rast(nrows = 2, ncols = 4, vals = c(0, 49, 50, 150, 250, 300, 450, NA))
+  thlb <- terra::rast(nrows = 2, ncols = 4, vals = c(1, 1, 1, 1, 0, 0, 0, 0))
+  out <- tabulateAgeByLandBase(age, thlb, year = 7, resInHA = 6.25)
+  expect_equal(nrow(out), 2 * 5)
+  expect_true(all(out$year == 7L))
+  expect_equal(sum(out$area_ha), 7 * 6.25)                       # NA age dropped
+  get <- function(lb, cl) out[landBase == lb & ageClass == cl, area_ha]
+  expect_equal(get("THLB", "0-49"), 2 * 6.25)
+  expect_equal(get("THLB", "50-99"), 6.25)
+  expect_equal(get("THLB", "100-199"), 6.25)
+  expect_equal(get("THLB", "300+"), 0)
+  expect_equal(get("Non-THLB", "200-299"), 6.25)
+  expect_equal(get("Non-THLB", "300+"), 2 * 6.25)               # 300 is in 300+, as is 450
+})
+
+test_that("tabulateAgeByLandBase reads categorical thlb layers by label", {
+  age  <- terra::rast(nrows = 1, ncols = 3, vals = c(10, 120, 320))
+  thlb <- terra::rast(nrows = 1, ncols = 3, vals = c(2, 1, 1))   # indices; labels 1 and 0
+  levels(thlb) <- data.frame(value = 1:2, thlb = c(0, 1))
+  out <- tabulateAgeByLandBase(age, thlb, year = 0, resInHA = 1)
+  expect_equal(out[landBase == "THLB", sum(area_ha)], 1)
+  expect_equal(out[landBase == "THLB" & ageClass == "0-49", area_ha], 1)
+  expect_equal(out[landBase == "Non-THLB", sum(area_ha)], 2)
+})
+
+test_that("ageClassLabels names the classes", {
+  expect_equal(ageClassLabels(), c("0-49", "50-99", "100-199", "200-299", "300+"))
+})
