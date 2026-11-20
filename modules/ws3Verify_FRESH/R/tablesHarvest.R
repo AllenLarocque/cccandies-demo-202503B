@@ -60,14 +60,25 @@ tabulateHarvestAge <- function(pf, cut, planAge, prevAge, resInHA) {
     , .(area_ha = .N * resInHA), by = .(tsa, landBase, ageRef, ageBin)]
 }
 
+#' One TSA's product of the plan's period-1 harvest: `expr` "totvol" (m3) or "1." (ha).
+#'
+#' Runs in Python: fm.unmask() returns development-type keys as tuples, which reticulate would
+#' turn into R lists and send back as Python lists that compile_product() never matches.
+planProduct <- function(fm, bn, expr) {
+  if (!reticulate::py_has_attr(reticulate::import_main(), "_ws3verify_plan_product"))
+    reticulate::py_run_string(paste(
+      "def _ws3verify_plan_product(fm, bn, expr):",
+      "    mask = ' '.join([bn] + ['?'] * (fm.nthemes() - 1))",
+      "    return fm.compile_product(1, expr, acode='harvest', dtype_keys=fm.unmask(mask))",
+      sep = "\n"))
+  as.numeric(reticulate::import_main()$`_ws3verify_plan_product`(fm, bn, expr))
+}
+
 #' The plan just made: each TSA's period-1 harvest volume (totvol) and area, from the ws3 ForestModel.
-planRow <- function(fm, basenames) {
+planRow <- function(fm, basenames, product = planProduct) {
   data.table::rbindlist(lapply(unlist(basenames), function(bn) {
-    keys <- fm$unmask(paste(bn, "? ? ?"))
-    data.table::data.table(
-      tsa = bn,
-      plannedVol_m3 = as.numeric(fm$compile_product(1L, "totvol", acode = "harvest", dtype_keys = keys)),
-      plannedArea_ha = as.numeric(fm$compile_product(1L, "1.", acode = "harvest", dtype_keys = keys)))
+    data.table::data.table(tsa = bn, plannedVol_m3 = product(fm, bn, "totvol"),
+                           plannedArea_ha = product(fm, bn, "1."))
   }))
 }
 

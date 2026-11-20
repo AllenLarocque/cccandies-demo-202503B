@@ -30,3 +30,8 @@ test_that("CollectStats fills ws3VerifyTables", {
   cs <- fnText("CollectStats")
   expect_match(cs, "CollectTables")
 })
+
+test_that("MakePlots writes the figure sets and the module declares patchwork", {
+  expect_match(fnText("MakePlots"), "writeFigureSets")
+  expect_match(src, '"patchwork"')
+})

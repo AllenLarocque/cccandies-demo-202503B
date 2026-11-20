@@ -70,19 +70,23 @@ test_that("tabulateHarvestAge bins cut area by plan-year and cut-time age", {
 
 test_that("planRow asks ws3 for each TSA's period-1 harvest volume and area", {
   calls <- list()
-  fm <- list(
-    unmask = function(mask) { calls$mask <<- c(calls$mask, mask); paste0("k_", mask) },
-    compile_product = function(period, expr, acode, dtype_keys) {
-      calls$period <<- c(calls$period, period)
-      stopifnot(acode == "harvest")
-      (if (expr == "totvol") 1000 else 10) * (if (grepl("tsa41", dtype_keys)) 1 else 2)
-    })
-  out <- planRow(fm, basenames = list("tsa41", "tsa40"))
+  product <- function(fm, bn, expr) {
+    calls$bn <<- c(calls$bn, bn)
+    (if (expr == "totvol") 1000 else 10) * (if (bn == "tsa41") 1 else 2)
+  }
+  out <- planRow(fm = "fm", basenames = list("tsa41", "tsa40"), product = product)
   expect_equal(out$tsa, c("tsa41", "tsa40"))
   expect_equal(out$plannedVol_m3, c(1000, 2000))
   expect_equal(out$plannedArea_ha, c(10, 20))
-  expect_true(all(calls$period == 1L))
-  expect_equal(calls$mask, c("tsa41 ? ? ?", "tsa40 ? ? ?"))
+  expect_equal(unique(calls$bn), c("tsa41", "tsa40"))
+})
+
+test_that("planProduct's Python helper keeps development-type keys in Python", {
+  # Regression: keys from fm.unmask() came back to R as lists and went back to Python as lists,
+  # which compile_product() never matches (its keys are tuples), so planned volume was always 0.
+  src <- paste(deparse(planProduct), collapse = "\n")
+  expect_match(src, "py_run_string")
+  expect_match(src, "dtype_keys=fm.unmask")
 })
 
 test_that("closePlanPeriod sums the period's harvest into the plan row: cut + skipped = planned", {

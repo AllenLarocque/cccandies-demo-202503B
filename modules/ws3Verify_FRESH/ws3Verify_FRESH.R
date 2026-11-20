@@ -12,7 +12,7 @@ defineModule(sim, list(
   documentation = list(),
   loadOrder = list(after = c("spades_ws3", "spades_ws3_landrAge", "scfmSpread")),
   reqdPkgs = list(
-    "data.table", "ggplot2", "terra", "reticulate", "geodata",
+    "data.table", "ggplot2", "terra", "reticulate", "geodata", "patchwork",
     "PredictiveEcology/SpaDES.core@development (>= 3.0.3.9003)"
   ),
   parameters = bindrows(
@@ -437,6 +437,15 @@ MakePlots <- function(sim) {
           path = file.path(mapDir, "map_studyArea"), types = plotTypes)
   saveMap(fn = function() mapStudyAreaContext(sim$studyArea),
           path = file.path(mapDir, "map_studyAreaContext"), types = plotTypes)
+
+  # Verification (V) and biological (B) figure sets from ws3VerifyTables; V6 (fire regime vs scfm
+  # targets) needs scfmDiagnostics' summary, written after this event, so it is drawn in multi mode
+  if (!is.null(sim$ws3VerifyTables$ageDT)) {
+    for (f in c("plotsCore.R", "plotsVerification.R", "plotsBiology.R", "figureSets.R"))
+      source(file.path(moduleSourceDir(sim), "R", f))
+    writeFigureSets(sim$ws3VerifyTables, sim$ws3VerifyMaps, figDir, types = plotTypes,
+                    oldForestAges = P(sim)$oldForestAges, byTsa = TRUE)
+  }
 
   return(invisible(sim))
 }
