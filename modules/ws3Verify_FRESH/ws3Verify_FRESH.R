@@ -129,6 +129,11 @@ doEvent.ws3Verify_FRESH <- function(sim, eventTime, eventType) {
   switch(
     eventType,
     init = {
+      if (P(sim)$mode == "multi") {
+        # post-processing: no collection; gather saved runs and draw the multi-run figures
+        sim <- scheduleEvent(sim, time(sim), "ws3Verify_FRESH", "multiPlots")
+        return(invisible(sim))
+      }
       sim <- Init(sim)
       # From the start year, so fires of the first year are counted. eventPriority 8: after scfmSpread "burn" (7.5), so this year's fires are in
       # burnSummary and rstCurrentBurn when stats are collected.
@@ -146,6 +151,9 @@ doEvent.ws3Verify_FRESH <- function(sim, eventTime, eventType) {
         sim <- scheduleEvent(sim, time(sim) + 1, "ws3Verify_FRESH", "collectStats",
                              eventPriority = 8)
       }
+    },
+    multiPlots = {
+      sim <- MultiPlots(sim)
     },
     endOfYear = {
       sim <- EndOfYear(sim)
@@ -377,6 +385,20 @@ CollectTables <- function(sim) {
     sim$ws3VerifyMaps <- m
   }
   sim$ws3VerifyTables <- tb
+  return(invisible(sim))
+}
+
+#' mode = "multi": stack the saved tables and maps of the runs under multiPaths and draw both
+#' figure sets (V6 included when the runs' scfmDiagnostics summaries are found).
+MultiPlots <- function(sim) {
+  for (f in c("gather.R", "plotsCore.R", "plotsVerification.R", "plotsBiology.R", "figureSets.R", "makePlotsHelpers.R"))
+    source(file.path(moduleSourceDir(sim), "R", f))
+  if (all(is.na(P(sim)$multiPaths))) stop("ws3Verify_FRESH: mode = 'multi' needs multiPaths")
+  sim$ws3VerifyTables <- gatherWs3VerifyTables(P(sim)$multiPaths)
+  maps <- gatherWs3VerifyMaps(P(sim)$multiPaths)
+  writeFigureSets(sim$ws3VerifyTables, if (length(maps) == 1) maps[[1]] else if (length(maps)) maps,
+                  file.path(outputPath(sim), "figures"), types = P(sim)$.plots,
+                  oldForestAges = P(sim)$oldForestAges, byTsa = TRUE)
   return(invisible(sim))
 }
 

@@ -35,3 +35,11 @@ test_that("MakePlots writes the figure sets and the module declares patchwork", 
   expect_match(fnText("MakePlots"), "writeFigureSets")
   expect_match(src, '"patchwork"')
 })
+
+test_that("mode = 'multi' gathers saved runs and draws the figure sets instead of collecting", {
+  expect_match(src, 'P\\(sim\\)\\$mode == "multi"')
+  mp <- fnText("MultiPlots")
+  expect_match(mp, "gatherWs3VerifyTables")
+  expect_match(mp, "gatherWs3VerifyMaps")
+  expect_match(mp, "writeFigureSets")
+})
