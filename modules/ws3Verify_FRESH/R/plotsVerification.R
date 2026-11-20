@@ -150,7 +150,8 @@ plotV6FireRegime <- function(tables, tsa = NULL, facet = "none") {
     ggplot2::scale_y_log10() +
     ggplot2::facet_wrap(~metric, scales = "free_y") +
     ggplot2::labs(x = "Fire-regime polygon", y = NULL, title = "V6. Simulated fire regime vs scfm targets",
-                  subtitle = paste("Pass: simulated points (orange) near the target (grey bar). Log scale.", runsNote(dt))) +
+                  subtitle = sprintf("Pass: simulated (orange, one point per run; %d runs) near the target (grey bar). Log scale.",
+                                     runCount(dt))) +
     wsTheme()
 }
 

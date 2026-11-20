@@ -47,3 +47,9 @@ test_that("V6 says when no scfm summary was gathered", {
   expect_true(.builds(p))
   expect_match(p$labels$title, "no scfm summary")
 })
+
+test_that("V6's subtitle describes points per run, not a band it does not draw", {
+  s <- plotV6FireRegime(.tablesFixture(nRuns = 2))$labels$subtitle
+  expect_false(grepl("band", s))
+  expect_match(s, "one point per run")
+})

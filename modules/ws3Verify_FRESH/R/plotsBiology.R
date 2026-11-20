@@ -122,7 +122,7 @@ plotB5Fire <- function(tables, tsa = NULL, facet = "none", window = 50) {
     ggplot2::ggplot(ev, ggplot2::aes(size_ha, exceed, group = scenario)) +
       ggplot2::geom_step(colour = wsColours[["fire"]], direction = "vh") +
       ggplot2::scale_x_log10() + ggplot2::scale_y_log10() + facetLayer(ev, facet) +
-      ggplot2::labs(x = "Fire size (ha)", y = "Share of fires this size or larger", title = "Fire sizes (all runs pooled)") + wsTheme()
+      ggplot2::labs(x = "Fire size (ha)", y = "Share >= size", title = "Fire sizes: share of fires this size or larger (all runs pooled)") + wsTheme()
   }
   window <- min(window, data.table::uniqueN(tables$ageDT$year))
   s3 <- if (is.null(tables$fireDT) || !nrow(tables$fireDT)) NULL else fireCycle(tables, tsa, window, facet)[is.finite(mean)]
@@ -130,7 +130,7 @@ plotB5Fire <- function(tables, tsa = NULL, facet = "none", window = 50) {
     ggplot2::ggplot(s3, ggplot2::aes(year)) + runLayers(s3, colour = "landBase") +
       ggplot2::scale_colour_manual(values = wsLandBase) + ggplot2::scale_fill_manual(values = wsLandBase) +
       ggplot2::scale_y_log10() + facetLayer(s3, facet) +
-      ggplot2::labs(x = "Year", y = "Fire cycle (years, log)", colour = NULL,
+      ggplot2::labs(x = "Year", y = "Years (log)", colour = NULL,
                     title = sprintf("Realised fire cycle (%d-year trailing window)", window)) + wsTheme()
   patchwork::wrap_plots(p1, p2, p3, ncol = 1) +
     patchwork::plot_annotation(title = "B5. Fire", subtitle = runsNote(tables$ageDT), theme = wsTheme())
