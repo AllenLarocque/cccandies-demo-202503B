@@ -33,6 +33,10 @@ defineModule(sim, list(
                           "curve_points_table.csv, used for burned volume. NA = inputPath(sim)."))
   ),
   inputObjects = bindrows(
+    expectsInput("harvestTimingStats", "data.table",
+                 paste("From spades_ws3 with harvestTiming = 'annual': planned, applied and skipped (reset",
+                       "since the plan) pixels per year. Used for missed harvest when present."),
+                 sourceURL = NA),
     expectsInput("harvestStats", "data.frame",
                  "Annual harvest pixel counts. Has columns: ws3_harvestArea_pixels, LandR_harvestArea_pixels, year.",
                  sourceURL = NA),
@@ -205,13 +209,22 @@ CollectStats <- function(sim) {
   )
 
   # 5. Missed harvest
-  missed <- computeMissedHarvest(
-    basenames      = basenames,
-    tifDir         = tifDir,
-    year           = calendarYear(t, start(sim), params(sim)$.globals$base.year),  # spades_ws3 names the files by calendar year
-    rstCurrentBurn = sim$rstCurrentBurn,
-    resInHA        = resInHA
-  )
+  # spades_ws3 names its rasters by calendar year, from its own base.year
+  baseYear <- params(sim)$spades_ws3$base.year
+  if (is.null(baseYear)) baseYear <- params(sim)$.globals$base.year
+  missed <- if (!is.null(sim$harvestTimingStats)) {
+    # spades_ws3 harvestTiming = "annual" records the planned pixels it skipped because they
+    # were reset (burned) since the plan: that is the harvest missed due to fire
+    missedFromTimingStats(sim$harvestTimingStats, calendarYear(t, start(sim), baseYear), resInHA)
+  } else {
+    computeMissedHarvest(
+      basenames      = basenames,
+      tifDir         = tifDir,
+      year           = calendarYear(t, start(sim), baseYear),
+      rstCurrentBurn = sim$rstCurrentBurn,
+      resInHA        = resInHA
+    )
+  }
   sim$ws3MissedHarvestDT <- appendMissedHarvestRow(
     dt                    = sim$ws3MissedHarvestDT,
     year                  = t,
