@@ -36,6 +36,10 @@ defineModule(sim, list(
                     "Replicate number stamped on every ws3VerifyTables row (overridden as for scenario)."),
     defineParameter("oldForestAges", "numeric", c(140, 250), 0, NA,
                     "Age thresholds (years) for the old-forest figure (B4)."),
+    defineParameter("harvestAgeTolerance", "numeric", NA_real_, 0, NA,
+                    paste("Years outside ws3's harvest age limits (100-400) that a cut stand may be at plan time",
+                          "and still pass V4 (counted and reported as tolerated). ws3's spatial allocation",
+                          "matches pixels within one period of the planned age. NA = the period length.")),
     defineParameter("resetAgeMax", "integer", 2L, 0L, NA,
                     paste("Highest age a harvested or burned pixel may have one year after its reset;",
                           "used by the age-accounting checks (V2, V3).")),
@@ -111,7 +115,7 @@ defineModule(sim, list(
                         "harvestTimingStats; NA without it), planned_raster_ha, harvested_landscape_ha,",
                         "plannedNotCut_ha, missedUnexplained_ha, vol_m3, cutVolPlanAge_m3, skippedVolPlanAge_m3",
                         "(planned stands reset since the plan), missedUnexplainedVol_m3, meanAgeAtCut,",
-                        "planRuleViolations_n.",
+                        "planRuleViolations_n, planRuleTolerated_n (within harvestAgeTolerance of the limits).",
                         "harvestAgeDT: landBase x ageRef ('plan'/'cut') x ageBin: area_ha.",
                         "planDT (planning years): plannedVol_m3, plannedArea_ha, cutArea_ha, cutVolPlanAge_m3,",
                         "skippedVolPlanAge_m3, missedUnexplainedVol_m3, cutVolCutAge_m3 (filled when the period",
@@ -368,7 +372,7 @@ CollectTables <- function(sim) {
   planned <- plannedHarvestCells(tifDir, basenames, yearCal, sim$landscape)
   add("harvestDT", tabulateHarvest(pf, cut, mod$planAge, mod$prevAge, planned, sim$harvestTimingStats,
                                    yearCal, resInHA, mod$yields, elapsed = t - mod$planYear,
-                                   cutEarlier = mod$cutThisPeriod))
+                                   cutEarlier = mod$cutThisPeriod, ageTolerance = harvestAgeTolerance(sim)))
   mod$cutThisPeriod <- c(mod$cutThisPeriod, cut)
   add("harvestAgeDT", tabulateHarvestAge(pf, cut, mod$planAge, mod$prevAge, resInHA))
   add("fireDT", tabulateFire(pf, burned, resInHA))
@@ -403,6 +407,14 @@ CollectTables <- function(sim) {
   return(invisible(sim))
 }
 
+#' V4's age tolerance: the harvestAgeTolerance param, or ws3's period length.
+harvestAgeTolerance <- function(sim) {
+  tol <- P(sim)$harvestAgeTolerance
+  if (is.null(tol) || is.na(tol)) tol <- params(sim)$.globals$period_length
+  if (is.null(tol) || is.na(tol)) tol <- 10
+  as.numeric(tol)
+}
+
 #' mode = "multi": stack the saved tables and maps of the runs under multiPaths and draw both
 #' figure sets (V6 included when the runs' scfmDiagnostics summaries are found).
 MultiPlots <- function(sim) {
@@ -413,7 +425,8 @@ MultiPlots <- function(sim) {
   maps <- gatherWs3VerifyMaps(P(sim)$multiPaths)
   writeFigureSets(sim$ws3VerifyTables, if (length(maps) == 1) maps[[1]] else if (length(maps)) maps,
                   file.path(outputPath(sim), "figures"), types = P(sim)$.plots,
-                  oldForestAges = P(sim)$oldForestAges, byTsa = TRUE)
+                  oldForestAges = P(sim)$oldForestAges, byTsa = TRUE,
+                  harvestAgeTolerance = harvestAgeTolerance(sim))
   return(invisible(sim))
 }
 
@@ -492,7 +505,8 @@ MakePlots <- function(sim) {
     for (f in c("plotsCore.R", "plotsVerification.R", "plotsBiology.R", "figureSets.R"))
       source(file.path(moduleSourceDir(sim), "R", f))
     writeFigureSets(sim$ws3VerifyTables, sim$ws3VerifyMaps, figDir, types = plotTypes,
-                    oldForestAges = P(sim)$oldForestAges, byTsa = TRUE)
+                    oldForestAges = P(sim)$oldForestAges, byTsa = TRUE,
+                    harvestAgeTolerance = harvestAgeTolerance(sim))
   }
 
   return(invisible(sim))

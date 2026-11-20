@@ -53,3 +53,13 @@ test_that("V6's subtitle describes points per run, not a band it does not draw",
   expect_false(grepl("band", s))
   expect_match(s, "one point per run")
 })
+
+test_that("V4 reports cuts within ws3's age tolerance next to the graph", {
+  tb <- .tablesFixture(nRuns = 2)
+  tb$harvestDT[, planRuleTolerated_n := 0L][year == 5, planRuleTolerated_n := 3L]
+  s <- plotV4HarvestRule(tb, tolerance = 10)$labels$subtitle
+  expect_match(s, "within ws3's allocation tolerance")
+  expect_match(s, "6 pixels")                  # 2 runs x 3
+  expect_match(s, "Violations, all years and runs: 0")
+  expect_true(.builds(plotV4HarvestRule(tb, tolerance = 10)))
+})

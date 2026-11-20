@@ -21,11 +21,15 @@ harvestedCells <- function(pf, prevAge, resetAgeMax = 2L) {
 #' @param timing       sim$harvestTimingStats, or NULL (harvestTiming = "period").
 #' @param yearCal      Calendar year (timing and raster file names use it).
 #' @param yields       loadYieldCurves() result.
+#' @param ageTolerance Years outside [minAge, maxAge] a cut stand may be at plan time and still count as
+#'   following ws3's rule (planRuleTolerated_n): ws3's spatial allocation matches pixels within one period
+#'   of the planned age (ws3/spatial.py, ForestRaster._transition_cells). 0 = the strict rule.
 #' @return data.table(tsa, planned_ws3_ha, applied_ws3_ha, skippedBurned_ws3_ha, planned_raster_ha,
 #'   harvested_landscape_ha, plannedNotCut_ha, vol_m3, cutVolPlanAge_m3, skippedVolPlanAge_m3,
-#'   meanAgeAtCut, planRuleViolations_n)
+#'   meanAgeAtCut, planRuleViolations_n, planRuleTolerated_n)
 tabulateHarvest <- function(pf, cut, planAge, prevAge, plannedCells, timing, yearCal, resInHA, yields,
-                            minAge = 100, maxAge = 400, elapsed = 0L, cutEarlier = integer(0)) {
+                            minAge = 100, maxAge = 400, elapsed = 0L, cutEarlier = integer(0),
+                            ageTolerance = 0) {
   d <- pf[, .(cell, tsa, landBase, au)]
   d[, `:=`(cut = cell %in% cut, planned = cell %in% plannedCells & !cell %in% cutEarlier)]
   d[, `:=`(pAge = planAge[cell], cAge = if (is.null(prevAge)) NA_real_ else prevAge[cell])]
@@ -45,7 +49,11 @@ tabulateHarvest <- function(pf, cut, planAge, prevAge, plannedCells, timing, yea
                skippedVolPlanAge_m3 = sum(volPlan[skipped]) * resInHA,
                missedUnexplainedVol_m3 = sum(volPlan[missed]) * resInHA,
                meanAgeAtCut = if (any(cut)) mean(cAge[cut]) else NA_real_,
-               planRuleViolations_n = sum(cut & (landBase != "THLB" | is.na(pAge) | pAge < minAge | pAge > maxAge))),
+               planRuleViolations_n = sum(cut & (landBase != "THLB" | is.na(pAge) |
+                                                 pAge < minAge - ageTolerance | pAge > maxAge + ageTolerance)),
+               planRuleTolerated_n = sum(cut & landBase == "THLB" & !is.na(pAge) &
+                                           ((pAge < minAge & pAge >= minAge - ageTolerance) |
+                                              (pAge > maxAge & pAge <= maxAge + ageTolerance)))),
            by = tsa]
   out[, `:=`(planned_ws3_ha = NA_real_, applied_ws3_ha = NA_real_, skippedBurned_ws3_ha = NA_real_)]
   if (!is.null(timing) && nrow(timing)) {

@@ -77,7 +77,7 @@ plotV3AgeBalance <- function(tables, tsa = NULL, facet = "none") {
 }
 
 #' V4. Age and land base of harvested stands: at plan time (ws3's rule, 100-400, THLB) and at cut.
-plotV4HarvestRule <- function(tables, tsa = NULL, facet = "none", minAge = 100, maxAge = 400) {
+plotV4HarvestRule <- function(tables, tsa = NULL, facet = "none", minAge = 100, maxAge = 400, tolerance = 0) {
   dt <- selectTsa(tables$harvestAgeDT, tsa)
   if (is.null(dt) || !nrow(dt)) return(emptyPlot("V4. Harvested stands follow ws3's rule", "No harvest: nothing to check."))
   grp <- c("ageRef", "landBase", "ageBin", if (facet == "tsa") "tsa")
@@ -85,16 +85,25 @@ plotV4HarvestRule <- function(tables, tsa = NULL, facet = "none", minAge = 100, 
   s <- dt[, .(area_ha = sum(area_ha) / nRuns), by = grp]
   s[, ageRef := factor(ifelse(ageRef == "plan", "Age when planned (rule checked here)", "Age when cut"),
                        levels = c("Age when planned (rule checked here)", "Age when cut"))]
-  viol <- sum(selectTsa(tables$harvestDT, tsa)$planRuleViolations_n, na.rm = TRUE)
+  hv <- selectTsa(tables$harvestDT, tsa)
+  viol <- sum(hv$planRuleViolations_n, na.rm = TRUE)
+  tol <- if ("planRuleTolerated_n" %in% names(hv)) sum(hv$planRuleTolerated_n, na.rm = TRUE) else NA
+  rule <- sprintf("Pass: all cut area THLB and aged %d-%d when planned (dark shade). Violations, all years and runs: %d.",
+                  minAge, maxAge, viol)
+  tolNote <- if (tolerance > 0 && !is.na(tol))
+    sprintf(paste("Allowed within ws3's allocation tolerance (light shade, +/- %g years): %s pixels.",
+                  "ws3's spatial allocation matches pixels within one period of the planned age, so a stand planned",
+                  "at 100 years can be cut from one aged 90-99."), tolerance, format(tol, big.mark = ","))
   ggplot2::ggplot(s, ggplot2::aes(ageBin + 5, area_ha, fill = landBase)) +
-    ggplot2::annotate("rect", xmin = minAge, xmax = maxAge, ymin = -Inf, ymax = Inf, alpha = 0.08, fill = wsColours[["harvest"]]) +
+    (if (tolerance > 0) ggplot2::annotate("rect", xmin = minAge - tolerance, xmax = maxAge + tolerance, ymin = -Inf, ymax = Inf,
+                                          alpha = 0.06, fill = wsColours[["harvest"]])) +
+    ggplot2::annotate("rect", xmin = minAge, xmax = maxAge, ymin = -Inf, ymax = Inf, alpha = 0.12, fill = wsColours[["harvest"]]) +
     ggplot2::geom_col(width = 9) +
     ggplot2::scale_fill_manual(values = wsLandBase) +
     (if (facet == "tsa") ggplot2::facet_grid(tsa ~ ageRef) else ggplot2::facet_wrap(~ageRef, nrow = 1)) +
     ggplot2::labs(x = "Stand age (10-year bins)", y = "Area cut (ha per run)", fill = NULL,
                   title = "V4. Harvested stands follow ws3's rule",
-                  subtitle = sprintf("Pass: all cut area THLB and aged %d-%d when planned (shaded). Violations, all years and runs: %d. %s",
-                                     minAge, maxAge, viol, runsNote(tables$harvestDT))) + wsTheme()
+                  subtitle = paste(rule, tolNote, runsNote(tables$harvestDT))) + wsTheme()
 }
 
 #' V5. Each plan's period-1 volume vs what was cut (at plan-time age) plus what was skipped.
