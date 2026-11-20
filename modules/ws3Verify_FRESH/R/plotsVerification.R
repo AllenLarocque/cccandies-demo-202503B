@@ -88,18 +88,19 @@ plotV4HarvestRule <- function(tables, tsa = NULL, facet = "none", minAge = 100, 
   hv <- selectTsa(tables$harvestDT, tsa)
   viol <- sum(hv$planRuleViolations_n, na.rm = TRUE)
   tol <- if ("planRuleTolerated_n" %in% names(hv)) sum(hv$planRuleTolerated_n, na.rm = TRUE) else NA
-  rule <- sprintf("Pass: all cut area THLB and aged %d-%d when planned (dark shade). Violations, all years and runs: %d.",
+  rule <- sprintf("Pass: all cut area THLB and aged %d-%d when planned (green band). Violations, all years and runs: %d.",
                   minAge, maxAge, viol)
   tolNote <- if (tolerance > 0 && !is.na(tol))
-    sprintf(paste("Allowed within ws3's allocation tolerance (light shade, +/- %g years): %s pixels.",
+    sprintf(paste("Allowed within ws3's allocation tolerance (violet edges, +/- %g years): %s pixels.",
                   "ws3's spatial allocation matches pixels within one period of the planned age, so a stand planned",
                   "at 100 years can be cut from one aged 90-99."), tolerance, format(tol, big.mark = ","))
   ggplot2::ggplot(s, ggplot2::aes(ageBin + 5, area_ha, fill = landBase)) +
     (if (tolerance > 0) ggplot2::annotate("rect", xmin = minAge - tolerance, xmax = maxAge + tolerance, ymin = -Inf, ymax = Inf,
-                                          alpha = 0.06, fill = wsColours[["harvest"]])) +
-    ggplot2::annotate("rect", xmin = minAge, xmax = maxAge, ymin = -Inf, ymax = Inf, alpha = 0.12, fill = wsColours[["harvest"]]) +
+                                          alpha = 0.10, fill = wsColours[["skipped"]])) +
+    ggplot2::annotate("rect", xmin = minAge, xmax = maxAge, ymin = -Inf, ymax = Inf, alpha = 0.14, fill = wsColours[["harvest"]]) +
     ggplot2::geom_col(width = 9) +
     ggplot2::scale_fill_manual(values = wsLandBase) +
+    ggplot2::scale_y_continuous(labels = function(x) format(x, big.mark = ",", scientific = FALSE, trim = TRUE)) +
     (if (facet == "tsa") ggplot2::facet_grid(tsa ~ ageRef) else ggplot2::facet_wrap(~ageRef, nrow = 1)) +
     ggplot2::labs(x = "Stand age (10-year bins)", y = "Area cut (ha per run)", fill = NULL,
                   title = "V4. Harvested stands follow ws3's rule",
