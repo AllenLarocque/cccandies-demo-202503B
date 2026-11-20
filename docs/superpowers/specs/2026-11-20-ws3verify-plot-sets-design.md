@@ -194,7 +194,7 @@ experiment2.**
   `applied_harvest_<year>.tif`) under `inputPath(sim)/tif.path`, and experiment2 only makes `outputPath` unique.
   Replicates would overwrite each other's inventories.
 
-Fixing this is a separate piece of work in a PredictiveEcology module (spades_ws3), so it follows the house rules:
+Allen (2026-11-20): replicate runs will be designed alongside the other model sets, possibly as a common SpaDES.experiment framework in a fork of this project. Fixing this is a separate piece of work in a PredictiveEcology module (spades_ws3), so it follows the house rules:
 new parameters with no-op defaults (e.g. build the ForestModel at the first event rather than in Init, and keep the
 working rasters under `outputPath`), regression tests, its own PR on Allen's fork. Until it lands, multi-run
 figures can be tested with separate `global.R` runs (each with its own `.rep`), which the folder-list path supports.
