@@ -20,14 +20,15 @@ if (!file.exists(".Rprofile")) {
 runOverrides <- list(
   basenames            = list("tsa41"),
   base.year            = 2020,
-  horizon              = 10,      # spadesws3_params.py forces horizon = 10 anyway
+  horizon              = 10,
   period_length        = 10,
   planning_period_freq = 10,
   scheduler.mode       = "optimize",
   times                = list(start = 0, end = 10),  # plans at years 0 and 10
   .rep                 = "minimal_tsa41",
   n_ws3_workers        = 1L,
-  fireMultiplier       = 1.5
+  fireMultiplier       = 1.5,
+  targetN              = 1000     # quick fire calibration
 )
 
 # reticulate::install_python() builds Python from source with pyenv, which needs `patch` (not in
