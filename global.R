@@ -47,7 +47,7 @@ verifyRep = 1L            # ws3Verify_FRESH: replicate number on every ws3Verify
 pythonPath = NA  # NA: spades_ws3_dataInit installs Python 3.12 itself
 
 modules = c(
-  "AllenLarocque/spades_ws3_dataInit@7809a24a53562d3f06b2e6638fd297cb6bed030d", # = feature/ws3-fresh-container-run; pinned by SHA, keep equal to the modules/spades_ws3_dataInit gitlink
+  "AllenLarocque/spades_ws3_dataInit@9f68f1c838dea8d36ffe43cd8fe4f668409ada67", # = feature/ws3-fresh-integration: container-run + multi-TSA labels fix + resolveTsaOverlaps; pinned by SHA, keep equal to the modules/spades_ws3_dataInit gitlink
   "AllenLarocque/spades_ws3@c04edde6d8772a753a1934094c750dc013f53a14", # = feature/ws3-fresh-integration: age-reset sync + horizon fix + harvestTiming (fork PRs #1-#3); keep equal to the modules/spades_ws3 gitlink
   "AllenLarocque/spades_ws3_landrAge@af6453c810e801d05483cfb323e7f31c6d5bb7ce", # = feature/ws3-fresh-integration: burn-reset priority + applied harvest (fork PRs #2, #3; on PE); keep equal to the modules/spades_ws3_landrAge gitlink
   "AllenLarocque/scfm@9213cb43a4a0a79d7874a8e0dab568ee5c4110b3", # = feature/fireMultiplier (on development); keep equal to the modules/scfm gitlink
@@ -146,6 +146,7 @@ simin <- SpaDES.project::setupProject(
                     saveFM.path = "fm_checkpoints"      # path to save fm objects
     ),
     spades_ws3_dataInit = list(GithubURL="https://github.com/UBC-FRESH/cccandies_demo_input.git",
+                               resolveTsaOverlaps = TRUE,  # stands listed in two TSAs (FRESH data) kept in one TSA only
                                .saveInitialTime = 0,
                                .saveInterval = 1,
                                .saveObjects = c("landscape"),
