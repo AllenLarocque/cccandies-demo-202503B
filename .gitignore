@@ -29,3 +29,10 @@ input/plots_fm15_rep1
 output/plots_fm15_rep1
 input/plots_fm15_rep2
 output/plots_fm15_rep2
+input/multitsa_check
+output/multitsa_check
+input/fixed_fm15_rep1
+output/fixed_fm15_rep1
+input/fixed_fm15_rep2
+output/fixed_fm15_rep2
+output/fixed_fm15_multi
