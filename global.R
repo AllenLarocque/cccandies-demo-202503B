@@ -117,13 +117,9 @@ simin <- SpaDES.project::setupProject(
                      .rep = "1_optimize",
                      .cores = c("sbw"),
                      fireMultiplier = 1.0,
-                     n_ws3_workers=1L,
-                     modules=c("PredictiveEcology/spades_ws3_dataInit@dev",
-                               "PredictiveEcology/spades_ws3@dev",
-                               "AllenLarocque/spades_ws3_landrAge@PE",
-                               "AllenLarocque/scfm@master")
-                               #"AllenLarocque/spades_ws3_diag_FRESH@main",
-                               #"AllenLarocque/spades_ws3_scfm_diag_FRESH@main")
+                     n_ws3_workers=1L
+                     # no `modules` default: the module list is set above (`modules = c(...)`), and
+                     # setupProject() ignores a defaultDots entry whose name the caller already defines
   ),
   target.scalefactors={                # This is how much to 'scale back' harvest, by proportion. The 'if' logic is here since it must be different formats depending on scheduler.mode selection
     if (scheduler.mode == "optimize") {
