@@ -41,3 +41,9 @@ test_that("makePlots is scheduled after collectStats, so plots include the last 
   expect_length(plotPrio, 2)
   expect_true(all(plotPrio > max(scheduledPriorities(moduleFile, "collectStats"))))
 })
+
+test_that("endOfYear snapshots ages after landrAge resets burned pixels (priority 9)", {
+  eoy <- scheduledPriorities(moduleFile, "endOfYear")
+  expect_length(eoy, 2)            # init and the re-schedule
+  expect_true(all(eoy > 9))
+})

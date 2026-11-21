@@ -139,18 +139,7 @@ computeBurnVolume <- function(rstCurrentBurn, au, age, yields, resInHA) {
   burnedIdx <- which(terra::values(rstCurrentBurn) > 0)
   if (length(burnedIdx) == 0) return(0)
 
-  dt <- data.table::data.table(au  = layerValues(au)[burnedIdx],
-                               age = layerValues(age)[burnedIdx])
-  dt <- dt[!is.na(au) & !is.na(age)]
-  dt[, curve := yields$auToCurve[as.character(au)]]
-  dt <- dt[!is.na(curve)]
-  if (nrow(dt) == 0) return(0)
-
-  dt[, vol := {
-    pts <- yields$points[[as.character(curve[1])]]
-    if (is.null(pts) || nrow(pts) == 0) 0 else stats::approx(pts$x, pts$y, xout = age, rule = 2)$y
-  }, by = curve]
-  sum(dt$vol) * resInHA
+  sum(pixelVolume(layerValues(au)[burnedIdx], layerValues(age)[burnedIdx], yields)) * resInHA
 }
 
 # ---------------------------------------------------------------------------
