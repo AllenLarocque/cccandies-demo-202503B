@@ -100,3 +100,16 @@ test_that("mapStudyAreaContext accepts a SpatVector (terra has no vect() method 
   expect_no_error(suppressMessages(mapStudyAreaContext(sa)))
   expect_no_error(suppressMessages(mapStudyAreaContext(sf::st_as_sf(sa))))
 })
+
+test_that("plotAgeByLandBase stacks shares to 1 per land base and orders classes young to old", {
+  ageDT <- data.table::rbindlist(lapply(0:3, function(y) data.table::data.table(
+    year = y, landBase = rep(c("THLB", "Non-THLB"), each = 5),
+    ageClass = rep(c("0-49", "50-99", "100-199", "200-299", "300+"), 2),
+    area_ha = c(10, 20, 30, 0, 0, 5, 5, 10, 20, 60 + y))))
+  p <- plotAgeByLandBase(ageDT)
+  expect_s3_class(p, "ggplot")
+  expect_equal(unname(p$data[, sum(share), by = .(year, landBase)]$V1), rep(1, 8))
+  expect_equal(rev(levels(p$data$ageClass)), c("0-49", "50-99", "100-199", "200-299", "300+"))
+  expect_match(levels(p$data$landBase)[1], "^THLB")
+  expect_silent(ggplot2::ggplot_build(p))
+})
