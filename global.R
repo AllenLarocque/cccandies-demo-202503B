@@ -50,7 +50,7 @@ modules = c(
   "AllenLarocque/spades_ws3_dataInit@e5c0fec0ca8de216e96659517721af57c7cf7eec", # = dev (fork PRs #1-#5: container-run fixes, pythonPath, multi-TSA labels fix, resolveTsaOverlaps); pinned by SHA, keep equal to the modules/spades_ws3_dataInit gitlink
   "AllenLarocque/spades_ws3@189ef9d205dc9f0adc03851808956a49eb21aba1", # = dev (fork PRs #1-#3: age-reset sync, horizon fix, harvestTiming); keep equal to the modules/spades_ws3 gitlink
   "AllenLarocque/spades_ws3_landrAge@f3ed7ad06c10e4886e4592f32e81c17a18dcfc54", # = PE (fork PRs #2, #3: burn-reset priority, applied harvest); keep equal to the modules/spades_ws3_landrAge gitlink
-  "AllenLarocque/scfm@9213cb43a4a0a79d7874a8e0dab568ee5c4110b3", # = feature/fireMultiplier (on development); keep equal to the modules/scfm gitlink
+  "AllenLarocque/scfm@9213cb43a4a0a79d7874a8e0dab568ee5c4110b3", # = feature/fireMultiplier (scfmDataPrep fireMultiplier; not on development until its PE PR, after scfmutils#18); keep equal to the modules/scfm gitlink
   "ws3Verify_FRESH"                               # Local module for verification plots
   #"AllenLarocque/spades_ws3_diag_FRESH@main",        # This module contains diagnostic plots for the WS3_FRESH module
   #"AllenLarocque/spades_ws3_scfm_diag_FRESH@main"    # This module contains diagnostic plots for the WS3_FRESH_scfm module
@@ -175,7 +175,6 @@ simin <- SpaDES.project::setupProject(
                "reticulate", "httr", "RCurl", "XML","bcdata",
                "PredictiveEcology/SpaDES.core@development (>= 3.0.3.9003)",
                "PredictiveEcology/reproducible@development (>= 3.2.1.9075)"  # SpaDES.core@development needs this
-               #,"AllenLarocque/scfmutils@cursor"
                ),
   sppEquiv = {
     spp <- LandR::sppEquivalencies_CA[LandR %in% c("Pinu_con", "Pinu_ban",
